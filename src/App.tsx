@@ -111,13 +111,17 @@ export default function App() {
     const states = buildBlockStates(mode, day, week)
     setBlockStates(states)
     blockStatesRef.current = states
-    setOpenBlocks(new Set([0]))
+    setOpenBlocks(new Set())
     setActiveBlockIdx(-1)
     setBbState('idle')
+    bbStateRef.current = 'idle'
     setShowRestTimer(false)
     setSessionComplete(false)
     stopGlobalTimer()
     clearInterval(restIntervalRef.current!)
+
+    const firstIncompleteIdx = states.findIndex(b => !b.completed)
+    if (firstIncompleteIdx >= 0) activateBlock(firstIncompleteIdx)
   }, [mode, day, week]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (mode) localStorage.setItem(MODE_KEY, mode) }, [mode])
