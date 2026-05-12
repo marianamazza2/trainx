@@ -106,6 +106,7 @@ export default function App() {
   const currentExIdxRef = useRef(0)
   const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const tabataIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const restPausedRef = useRef(false)
   const circuitWorkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const circuitRestIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const circuitStateRef = useRef<CircuitState | null>(null)
@@ -170,8 +171,10 @@ export default function App() {
       clearInterval(globalTimerRef.current!)
       globalTimerRef.current = null
       setGlobalTimerPaused(true)
+      restPausedRef.current = true
     } else {
       setGlobalTimerPaused(false)
+      restPausedRef.current = false
       globalTimerRef.current = setInterval(() => {
         globalTimerSecsRef.current++
         setGlobalTimerSecs(globalTimerSecsRef.current)
@@ -185,6 +188,7 @@ export default function App() {
     autoPlaySecsRef.current = 8
     setAutoPlaySecs(8)
     autoPlayRef.current = setInterval(() => {
+      if (restPausedRef.current) return
       const next = (autoPlaySecsRef.current ?? 1) - 1
       autoPlaySecsRef.current = next
       setAutoPlaySecs(next)
@@ -211,6 +215,7 @@ export default function App() {
     let count = 1
     setRepCount(1)
     repIntervalRef.current = setInterval(() => {
+      if (restPausedRef.current) return
       count++
       if (count > totalReps) {
         clearInterval(repIntervalRef.current!)
@@ -396,9 +401,11 @@ export default function App() {
     setBbState('resting')
     bbStateRef.current = 'resting'
 
+    restPausedRef.current = false
     let remaining = restSec
     clearInterval(restIntervalRef.current!)
     restIntervalRef.current = setInterval(() => {
+      if (restPausedRef.current) return
       remaining--
       setRestRemaining(remaining)
       if (remaining <= 3 && remaining > 0) beep(600, 100)
@@ -440,6 +447,7 @@ export default function App() {
     let remaining = 5
     clearInterval(restIntervalRef.current!)
     restIntervalRef.current = setInterval(() => {
+      if (restPausedRef.current) return
       remaining--
       setRestRemaining(remaining)
       if (remaining <= 3 && remaining > 0) beep(600, 80)
@@ -531,6 +539,7 @@ export default function App() {
     let tick = 1
     clearInterval(circuitWorkIntervalRef.current!)
     circuitWorkIntervalRef.current = setInterval(() => {
+      if (restPausedRef.current) return
       tick++
       if (tick > totalReps) {
         clearInterval(circuitWorkIntervalRef.current!)
@@ -565,6 +574,7 @@ export default function App() {
     let remaining = 5
     clearInterval(circuitRestIntervalRef.current!)
     circuitRestIntervalRef.current = setInterval(() => {
+      if (restPausedRef.current) return
       remaining--
       setRestRemaining(remaining)
       if (remaining <= 3 && remaining > 0) beep(600, 80)
@@ -616,6 +626,11 @@ export default function App() {
             const finishedBi = s.bi
             setTabataState(null)
             tabataStateRef.current = null
+            const newBs = [...blockStatesRef.current]
+            newBs[finishedBi] = { ...newBs[finishedBi], completed: true }
+            setBlockStates(newBs)
+            blockStatesRef.current = newBs
+            saveSession(modeRef.current!, dayRef.current, newBs.map(b => b.completed))
             setBbState('tabata-done')
             bbStateRef.current = 'tabata-done'
             setActiveBlockIdx(finishedBi)

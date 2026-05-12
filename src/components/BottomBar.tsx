@@ -25,21 +25,25 @@ export default function BottomBar({
           <span className="bottom-bar-block-name">{blockName}</span>
           <span className="bottom-bar-series">{seriesText}</span>
         </div>
-        <div className={`bottom-bar-timer${showTimer ? ' active' : ''}`}>
-          <div className="bottom-bar-timer-label">{timerLabel}</div>
-          <div className="bottom-bar-timer-time">{timerTime}</div>
-          <div className="bottom-bar-timer-sub">{timerSub}</div>
-        </div>
-        {repCount != null && (
-          <div className="bottom-bar-rep-counter">
-            <div className="bottom-bar-rep-num">{repCount}</div>
+        <div className="bottom-bar-middle">
+          <div className={`bottom-bar-timer${showTimer ? ' active' : ''}`}>
+            <div className="bottom-bar-timer-label">{timerLabel}</div>
+            <div className="bottom-bar-timer-time">{timerTime}</div>
+            <div className="bottom-bar-timer-sub">{timerSub}</div>
           </div>
-        )}
-        {showBtn && (
-          <button className={`bottom-bar-btn ${btnClass}`} onClick={onAction}>
-            {btnText}
-          </button>
-        )}
+          {repCount != null && (
+            <div className="bottom-bar-rep-counter">
+              <div className="bottom-bar-rep-num">{repCount}</div>
+            </div>
+          )}
+        </div>
+        <button
+          className={`bottom-bar-btn ${btnClass}`}
+          onClick={onAction}
+          style={!showBtn ? { visibility: 'hidden', pointerEvents: 'none' } : undefined}
+        >
+          {btnText}
+        </button>
       </div>
     </div>
   )
