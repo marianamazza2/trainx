@@ -372,12 +372,6 @@ export default function App() {
     }
   }
 
-  function completeBlock(bi: number) {
-    if (!markBlockDone(bi)) {
-      activateNextBlock(bi)
-    }
-  }
-
   // ── Tabata ────────────────────────────────────────────────────────────────
   function startTabata(bi: number) {
     const m = modeRef.current!
