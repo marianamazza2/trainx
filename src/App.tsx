@@ -282,8 +282,6 @@ export default function App() {
 
   // ── Block activation ──────────────────────────────────────────────────────
   function activateBlock(bi: number) {
-    const m = modeRef.current!
-    const days = m === 'casa' ? CASA_DAYS : GYM_DAYS
     setActiveBlockIdx(bi)
     activeBlockIdxRef.current = bi
     setShowRestTimer(false)
