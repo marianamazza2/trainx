@@ -206,7 +206,7 @@ export default function App() {
   }
 
   // ── Rep counter ────────────────────────────────────────────────────────────
-  function startRepCounter(totalReps: number) {
+  function startRepCounter(totalReps: number, onComplete?: () => void) {
     clearInterval(repIntervalRef.current!)
     let count = 1
     setRepCount(1)
@@ -216,6 +216,7 @@ export default function App() {
         clearInterval(repIntervalRef.current!)
         repIntervalRef.current = null
         setRepCount(null)
+        onComplete?.()
       } else {
         setRepCount(count)
       }
@@ -355,7 +356,15 @@ export default function App() {
     setBbState('training')
     bbStateRef.current = 'training'
     if (!block.exercises[exIdx]?.isIso) {
-      startRepCounter(WEEKS[weekRef.current].reps)
+      if (isMulti && exIdx < block.exercises.length - 1) {
+        startRepCounter(WEEKS[weekRef.current].reps, () => {
+          startSwitchCountdown(bi, exIdx + 1, blockStatesRef.current[bi])
+        })
+      } else {
+        startRepCounter(WEEKS[weekRef.current].reps, () => {
+          startRestCountdown(bi)
+        })
+      }
     }
   }
 
