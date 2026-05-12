@@ -284,8 +284,6 @@ export default function App() {
   function activateBlock(bi: number) {
     const m = modeRef.current!
     const days = m === 'casa' ? CASA_DAYS : GYM_DAYS
-    const block = days[dayRef.current].blocks[bi]
-
     setActiveBlockIdx(bi)
     activeBlockIdxRef.current = bi
     setShowRestTimer(false)
@@ -344,7 +342,7 @@ export default function App() {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function enterTrainingState(bi: number, bs: BlockState, exIdx = 0) {
+  function enterTrainingState(bi: number, _bs: BlockState, exIdx = 0) {
     beepWork(); vibrate(100)
     currentExIdxRef.current = exIdx
     setCurrentExIdx(exIdx)
@@ -545,7 +543,6 @@ export default function App() {
 
   function enterCircuitWork(cs: CircuitState) {
     beepWork(); vibrate(100)
-    const ex = cs.exercises[cs.currentExIdx]
     const days = modeRef.current === 'casa' ? CASA_DAYS : GYM_DAYS
     const block = days[dayRef.current].blocks[cs.bi]
     const workSec = block.workSec ?? 40
