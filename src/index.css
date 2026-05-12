@@ -201,7 +201,14 @@ body {
 .exercise-play.no-video { opacity: 0.3; }
 .exercise-play.no-video::after { border-left-color: var(--text-3); }
 .exercise-info { flex: 1; min-width: 0; }
-.exercise-name { font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; line-height: 1.3; }
+.exercise-name { font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; line-height: 1.3; display: flex; align-items: center; gap: 8px; }
+.exercise-rep-count {
+  font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: 1px;
+  background: var(--accent); color: #0a0a0a;
+  width: 26px; height: 26px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; animation: rep-pop 0.2s ease;
+}
 .exercise-meta { display: flex; gap: 6px; flex-wrap: wrap; }
 .meta-tag { font-size: 0.6rem; font-weight: 600; padding: 2px 8px; border-radius: 50px; }
 .meta-tag.reps { background: var(--surface-3); color: var(--text-2); }
@@ -256,14 +263,6 @@ body {
   display: flex; align-items: center; justify-content: center;
 }
 
-.bottom-bar-rep-counter {
-  display: flex; align-items: center; justify-content: center;
-}
-.bottom-bar-rep-num {
-  font-family: 'Bebas Neue', sans-serif; font-size: 5rem; line-height: 1;
-  color: var(--accent); letter-spacing: 4px;
-  animation: rep-pop 0.2s ease;
-}
 @keyframes rep-pop {
   0% { transform: scale(0.7); opacity: 0.4; }
   60% { transform: scale(1.1); }
@@ -281,17 +280,6 @@ body {
 .bottom-bar-btn.btn-done-set { background: var(--surface-3); color: var(--accent); border: 1px solid var(--accent-glow); }
 .bottom-bar-btn.btn-next-set { background: var(--accent); color: #0a0a0a; }
 
-.bottom-bar-exercise-action {
-  width: 100%; padding: 14px 8px; border: none; border-radius: 14px;
-  background: var(--surface-3);
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 2px;
-  color: var(--text-1); cursor: pointer; transition: all 0.15s;
-}
-.bottom-bar-exercise-action:active { transform: scale(0.97); }
-.exercise-action-arrow {
-  font-size: 1.4rem; color: var(--accent); line-height: 1;
-}
 
 .bottom-bar-timer {
   display: none;

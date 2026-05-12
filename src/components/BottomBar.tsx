@@ -1,59 +1,36 @@
 interface Props {
   visible: boolean
-  blockName: string
-  seriesText: string
   showTimer: boolean
   timerLabel: string
   timerTime: string
   timerSub: string
-  repCount?: number | null
   showBtn: boolean
-  exerciseActionLabel?: string | null
   btnClass: string
   btnText: string
   onAction: () => void
 }
 
 export default function BottomBar({
-  visible, blockName, seriesText,
-  showTimer, timerLabel, timerTime, timerSub,
-  repCount, showBtn, exerciseActionLabel, btnClass, btnText, onAction,
+  visible, showTimer, timerLabel, timerTime, timerSub,
+  showBtn, btnClass, btnText, onAction,
 }: Props) {
-  const hasMiddleContent = showTimer || repCount != null
-
   return (
     <div className={`bottom-bar${visible ? ' visible' : ''}`}>
       <div className="bottom-bar-inner">
-        <div className="bottom-bar-info">
-          <span className="bottom-bar-block-name">{blockName}</span>
-          <span className="bottom-bar-series">{seriesText}</span>
-        </div>
-        <div className="bottom-bar-middle" style={!hasMiddleContent ? { display: 'none' } : undefined}>
-          <div className={`bottom-bar-timer${showTimer ? ' active' : ''}`}>
+        <div className="bottom-bar-middle" style={!showTimer ? { display: 'none' } : undefined}>
+          <div className="bottom-bar-timer active">
             <div className="bottom-bar-timer-label">{timerLabel}</div>
             <div className="bottom-bar-timer-time">{timerTime}</div>
             <div className="bottom-bar-timer-sub">{timerSub}</div>
           </div>
-          {repCount != null && (
-            <div className="bottom-bar-rep-counter">
-              <div className="bottom-bar-rep-num">{repCount}</div>
-            </div>
-          )}
         </div>
-        {exerciseActionLabel ? (
-          <button className="bottom-bar-exercise-action" onClick={onAction}>
-            <span>{exerciseActionLabel}</span>
-            <span className="exercise-action-arrow">→</span>
-          </button>
-        ) : (
-          <button
-            className={`bottom-bar-btn ${btnClass}`}
-            onClick={onAction}
-            style={!showBtn ? { display: 'none' } : undefined}
-          >
-            {btnText}
-          </button>
-        )}
+        <button
+          className={`bottom-bar-btn ${btnClass}`}
+          onClick={onAction}
+          style={!showBtn ? { display: 'none' } : undefined}
+        >
+          {btnText}
+        </button>
       </div>
     </div>
   )

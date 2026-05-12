@@ -8,14 +8,15 @@ interface Props {
   isOpen: boolean
   isActive: boolean
   activeExIdx: number
-  completedExIdxs: number[]
+  completedExIdxs?: number[]
+  repCount?: number | null
   week: Week
   mode: Mode
   onToggle: () => void
   onVideoOpen: (url: string) => void
 }
 
-export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, completedExIdxs, week, mode, onToggle, onVideoOpen }: Props) {
+export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, completedExIdxs = [], repCount, week, mode, onToggle, onVideoOpen }: Props) {
   const exerciseRefs = useRef<(HTMLDivElement | null)[]>([])
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -105,7 +106,12 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
                   <div className="exercise-inner">
                     <div className={`exercise-play${hasVideo ? '' : ' no-video'}`} />
                     <div className="exercise-info">
-                      <div className="exercise-name">{ex.name}</div>
+                      <div className="exercise-name">
+                      {ex.name}
+                      {isCurrentEx && repCount != null && (
+                        <span className="exercise-rep-count">{repCount}</span>
+                      )}
+                    </div>
                       <div className="exercise-meta">
                         <span className="meta-tag reps">{repsText}</span>
                         <span className="meta-tag muscle">{ex.muscle}</span>

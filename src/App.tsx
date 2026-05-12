@@ -76,8 +76,6 @@ export default function App() {
   const [openBlocks, setOpenBlocks] = useState<Set<number>>(new Set())
   const [activeBlockIdx, setActiveBlockIdx] = useState(-1)
   const [bbState, setBbState] = useState<BBState>('idle')
-  const [bbBlockName, setBbBlockName] = useState('—')
-  const [bbSeriesText, setBbSeriesText] = useState('')
   const [currentExIdx, setCurrentExIdx] = useState(0)
   const [bbTimerLabel, setBbTimerLabel] = useState('DESCANSO')
   const [showRestTimer, setShowRestTimer] = useState(false)
@@ -88,7 +86,6 @@ export default function App() {
   const [globalTimerPaused, setGlobalTimerPaused] = useState(false)
   const [autoPlaySecs, setAutoPlaySecs] = useState<number | null>(null)
   const [repCount, setRepCount] = useState<number | null>(null)
-  const [exerciseActionLabel, setExerciseActionLabel] = useState<string | null>(null)
   const [tabataState, setTabataState] = useState<TabataState | null>(null)
   const [, setCircuitState] = useState<CircuitState | null>(null)
   const [sessionComplete, setSessionComplete] = useState(false)
@@ -291,8 +288,6 @@ export default function App() {
 
     setActiveBlockIdx(bi)
     activeBlockIdxRef.current = bi
-    setBbBlockName(block.title)
-    setBbSeriesText('')
     setShowRestTimer(false)
     setBbState('ready')
     bbStateRef.current = 'ready'
@@ -358,14 +353,6 @@ export default function App() {
     const days = m === 'casa' ? CASA_DAYS : GYM_DAYS
     const block = days[dayRef.current].blocks[bi]
     const isMulti = (block.type === 'superserie' || block.type === 'biserie') && block.exercises.length > 1
-    if (isMulti) {
-      const ex = block.exercises[exIdx]
-      setBbSeriesText(`Ejercicio ${exIdx + 1}/${block.exercises.length}`)
-      setExerciseActionLabel(ex.name.toUpperCase())
-    } else {
-      setBbSeriesText(`Serie ${bs.currentSet} de ${bs.totalSets}`)
-      setExerciseActionLabel(null)
-    }
     setShowRestTimer(false)
     setBbState('training')
     bbStateRef.current = 'training'
@@ -402,8 +389,6 @@ export default function App() {
 
     beepRest(); vibrate(200)
     setBbTimerLabel('DESCANSO')
-    setBbSeriesText('')
-    setExerciseActionLabel(null)
     setCurrentExIdx(0); currentExIdxRef.current = 0
     setCompletedExIdxs([])
     setShowRestTimer(true)
@@ -434,7 +419,6 @@ export default function App() {
           blockStatesRef.current = current
           setBbState('next')
           bbStateRef.current = 'next'
-          setBbSeriesText(`Serie ${current[bi].currentSet} de ${current[bi].totalSets}`)
           startAutoPlay(bi)
         }
       }
@@ -449,7 +433,6 @@ export default function App() {
 
     beepRest(); vibrate(150)
     setBbTimerLabel('CAMBIO')
-    setExerciseActionLabel(null)
     setShowRestTimer(true)
     setRestRemaining(5)
     setRestSub(`→ ${nextEx.name}`)
@@ -567,8 +550,6 @@ export default function App() {
     const block = days[dayRef.current].blocks[cs.bi]
     const workSec = block.workSec ?? 40
 
-    setBbSeriesText(`Ej ${cs.currentExIdx + 1}/${cs.exercises.length} · Ronda ${cs.currentRound}/${cs.totalRounds}`)
-    setBbBlockName(ex?.name ?? '—')
     setShowRestTimer(false)
     setRepCount(workSec)
 
@@ -846,6 +827,7 @@ export default function App() {
               isActive={activeBlockIdx === bi}
               activeExIdx={activeBlockIdx === bi && bbState === 'training' ? currentExIdx : -1}
               completedExIdxs={activeBlockIdx === bi ? completedExIdxs : []}
+              repCount={activeBlockIdx === bi && bbState === 'training' ? repCount : null}
               week={currentWeekData}
               mode={mode}
               onToggle={() => handleAccordionToggle(bi)}
@@ -897,15 +879,11 @@ export default function App() {
 
       <BottomBar
         visible={bbVisible}
-        blockName={bbBlockName}
-        seriesText={bbSeriesText}
         showTimer={showRestTimer}
         timerLabel={bbTimerLabel}
         timerTime={bbState === 'circuit' || bbState === 'circuit-prep' ? String(restRemaining) : fmt(restRemaining)}
         timerSub={restSub}
-        repCount={repCount}
-        showBtn={!showRestTimer && bbState !== 'circuit' && bbState !== 'circuit-prep' && !exerciseActionLabel}
-        exerciseActionLabel={exerciseActionLabel}
+        showBtn={!showRestTimer && bbState !== 'circuit' && bbState !== 'circuit-prep'}
         btnClass={btnCls}
         btnText={btnText}
         onAction={bbAction}
