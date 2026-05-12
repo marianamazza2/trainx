@@ -96,7 +96,8 @@ body {
 .global-timer-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); animation: pulse 1.5s ease infinite; }
 .global-timer.paused .global-timer-dot { background: var(--text-3); animation: none; }
 .global-timer.paused .global-timer-time { color: var(--text-3); }
-.global-timer-pause-icon { font-size: 0.9rem; color: var(--text-3); }
+.global-timer-pause-icon { font-size: 0.9rem; color: var(--accent); }
+.global-timer.paused .global-timer-pause-icon { color: var(--text-3); }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 /* Week Selector */
@@ -244,7 +245,7 @@ body {
 
 .bottom-bar-rep-counter {
   display: flex; align-items: center; justify-content: center;
-  padding: 4px 0 8px;
+  height: calc(5rem + 20px);
 }
 .bottom-bar-rep-num {
   font-family: 'Bebas Neue', sans-serif; font-size: 5rem; line-height: 1;
@@ -272,11 +273,12 @@ body {
   display: none;
   flex-direction: column;
   align-items: center;
-  padding: 8px 0 12px;
+  justify-content: center;
+  height: calc(5rem + 20px);
 }
 .bottom-bar-timer.active { display: flex; }
-.bottom-bar-timer-label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--text-3); }
-.bottom-bar-timer-time { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; color: var(--accent); letter-spacing: 3px; line-height: 1; }
+.bottom-bar-timer-label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--text-3); margin-bottom: 2px; }
+.bottom-bar-timer-time { font-family: 'Bebas Neue', sans-serif; font-size: 5rem; color: var(--accent); letter-spacing: 3px; line-height: 1; }
 .bottom-bar-timer-sub { font-size: 0.7rem; color: var(--text-2); margin-top: 2px; font-weight: 600; }
 
 /* Tabata Overlay */

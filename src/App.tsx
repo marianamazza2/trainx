@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Mode, BlockState, BBState, TabataState } from './types/workout'
+import type { Mode, BlockState, BBState, TabataState, CircuitState } from './types/workout'
 import { WEEKS, CASA_DAYS, GYM_DAYS, TREADMILL } from './data/workout'
 import AccordionBlock from './components/AccordionBlock'
 import BottomBar from './components/BottomBar'
@@ -89,6 +89,7 @@ export default function App() {
   const [autoPlaySecs, setAutoPlaySecs] = useState<number | null>(null)
   const [repCount, setRepCount] = useState<number | null>(null)
   const [tabataState, setTabataState] = useState<TabataState | null>(null)
+  const [, setCircuitState] = useState<CircuitState | null>(null)
   const [sessionComplete, setSessionComplete] = useState(false)
 
   // Refs so interval callbacks always read current values
@@ -101,9 +102,13 @@ export default function App() {
   const dayRef = useRef(day)
   const globalTimerSecsRef = useRef(0)
   const globalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const globalTimerRunningRef = useRef(false)
   const currentExIdxRef = useRef(0)
   const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const tabataIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const circuitWorkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const circuitRestIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const circuitStateRef = useRef<CircuitState | null>(null)
   const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const autoPlaySecsRef = useRef<number | null>(null)
   const repIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -115,6 +120,7 @@ export default function App() {
   weekRef.current = week
   modeRef.current = mode
   dayRef.current = day
+  globalTimerRunningRef.current = globalTimerRunning
 
   // ── Init day content ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -230,10 +236,20 @@ export default function App() {
     setDay(todayDayIndex())
   }
 
+  function stopCircuit() {
+    clearInterval(circuitWorkIntervalRef.current!)
+    clearInterval(circuitRestIntervalRef.current!)
+    circuitWorkIntervalRef.current = null
+    circuitRestIntervalRef.current = null
+    circuitStateRef.current = null
+    setCircuitState(null)
+  }
+
   function goBack() {
     stopGlobalTimer()
     cancelAutoPlay()
     stopRepCounter()
+    stopCircuit()
     clearInterval(restIntervalRef.current!)
     clearInterval(tabataIntervalRef.current!)
     setTabataState(null)
@@ -246,6 +262,7 @@ export default function App() {
     stopGlobalTimer()
     cancelAutoPlay()
     stopRepCounter()
+    stopCircuit()
     clearInterval(restIntervalRef.current!)
     clearInterval(tabataIntervalRef.current!)
     setTabataState(null)
@@ -268,6 +285,7 @@ export default function App() {
     setShowRestTimer(false)
     setBbState('ready')
     bbStateRef.current = 'ready'
+    setOpenBlocks(prev => { const next = new Set(prev); next.add(bi); return next })
   }
 
   function handleAccordionToggle(bi: number) {
@@ -294,7 +312,10 @@ export default function App() {
 
     if (state === 'ready') {
       if (!globalTimerRef.current) startGlobalTimer()
-      if (isTabata) { startTabata(bi); return }
+      if (isTabata) {
+        if (block.type === 'hiit') { startCircuit(bi); return }
+        startTabata(bi); return
+      }
       const bs = [...blockStatesRef.current]
       bs[bi] = { ...bs[bi], started: true, currentSet: 1 }
       setBlockStates(bs)
@@ -339,6 +360,13 @@ export default function App() {
   }
 
   function startRestCountdown(bi: number, forceComplete = false) {
+    if (globalTimerRunningRef.current && !globalTimerRef.current) {
+      setGlobalTimerPaused(false)
+      globalTimerRef.current = setInterval(() => {
+        globalTimerSecsRef.current++
+        setGlobalTimerSecs(globalTimerSecsRef.current)
+      }, 1000)
+    }
     const w = WEEKS[weekRef.current]
     const restSec = modeRef.current === 'casa' ? w.restSecCasa : w.restSecGym
     const bs = blockStatesRef.current[bi]
@@ -351,6 +379,7 @@ export default function App() {
 
     beepRest(); vibrate(200)
     setBbTimerLabel('DESCANSO')
+    setBbSeriesText('')
     setCurrentExIdx(0); currentExIdxRef.current = 0
     setShowRestTimer(true)
     setRestRemaining(restSec)
@@ -452,6 +481,94 @@ export default function App() {
         activateBlock(nextBi)
       }, 400)
     }
+  }
+
+  // ── Circuit (HIIT) ────────────────────────────────────────────────────────
+  function startCircuit(bi: number) {
+    const m = modeRef.current!
+    const days = m === 'casa' ? CASA_DAYS : GYM_DAYS
+    const block = days[dayRef.current].blocks[bi]
+
+    setOpenBlocks(prev => { const next = new Set(prev); next.add(bi); return next })
+
+    const bs = [...blockStatesRef.current]
+    bs[bi] = { ...bs[bi], started: true }
+    setBlockStates(bs)
+    blockStatesRef.current = bs
+
+    if (!globalTimerRef.current) startGlobalTimer()
+
+    const cs: CircuitState = {
+      bi, exercises: block.exercises,
+      totalRounds: block.rounds!, currentRound: 1, currentExIdx: 0,
+    }
+    circuitStateRef.current = cs
+    setCircuitState({ ...cs })
+    setBbState('circuit')
+    bbStateRef.current = 'circuit'
+
+    enterCircuitWork(cs)
+  }
+
+  function enterCircuitWork(cs: CircuitState) {
+    beepWork(); vibrate(100)
+    const ex = cs.exercises[cs.currentExIdx]
+    setBbSeriesText(`Ej ${cs.currentExIdx + 1}/${cs.exercises.length} · Ronda ${cs.currentRound}/${cs.totalRounds}`)
+    setBbBlockName(ex?.name ?? '—')
+    setShowRestTimer(false)
+    setRepCount(1)
+
+    const totalReps = WEEKS[weekRef.current].reps
+    let tick = 1
+    clearInterval(circuitWorkIntervalRef.current!)
+    circuitWorkIntervalRef.current = setInterval(() => {
+      tick++
+      if (tick > totalReps) {
+        clearInterval(circuitWorkIntervalRef.current!)
+        circuitWorkIntervalRef.current = null
+        setRepCount(null)
+        enterCircuitRest(circuitStateRef.current!)
+      } else {
+        setRepCount(tick)
+      }
+    }, 1500)
+  }
+
+  function enterCircuitRest(cs: CircuitState) {
+    const nextExIdx = (cs.currentExIdx + 1) % cs.exercises.length
+    const nextRound = cs.currentExIdx + 1 >= cs.exercises.length ? cs.currentRound + 1 : cs.currentRound
+    const isLast = cs.currentExIdx + 1 >= cs.exercises.length && cs.currentRound >= cs.totalRounds
+
+    if (isLast) {
+      circuitStateRef.current = null
+      setCircuitState(null)
+      startRestCountdown(cs.bi, true)
+      return
+    }
+
+    beepRest(); vibrate(150)
+    const nextEx = cs.exercises[nextExIdx]
+    setShowRestTimer(true)
+    setRestRemaining(5)
+    setBbTimerLabel('PREPARATE')
+    setRestSub(`→ ${nextEx?.name ?? '—'}`)
+
+    let remaining = 5
+    clearInterval(circuitRestIntervalRef.current!)
+    circuitRestIntervalRef.current = setInterval(() => {
+      remaining--
+      setRestRemaining(remaining)
+      if (remaining <= 3 && remaining > 0) beep(600, 80)
+      if (remaining <= 0) {
+        clearInterval(circuitRestIntervalRef.current!)
+        circuitRestIntervalRef.current = null
+        setShowRestTimer(false)
+        const newCs: CircuitState = { ...cs, currentExIdx: nextExIdx, currentRound: nextRound }
+        circuitStateRef.current = newCs
+        setCircuitState({ ...newCs })
+        enterCircuitWork(newCs)
+      }
+    }, 1000)
   }
 
   // ── Tabata ────────────────────────────────────────────────────────────────
@@ -606,7 +723,7 @@ export default function App() {
             <div className="global-timer-dot" />
             <span className="global-timer-label">Sesión</span>
             <span className="global-timer-time">{fmt(globalTimerSecs)}</span>
-            {globalTimerPaused && <span className="global-timer-pause-icon">⏸</span>}
+            {globalTimerRunning && <span className="global-timer-pause-icon">{globalTimerPaused ? '▶' : '⏸'}</span>}
           </div>
 
           <div className="week-selector">
@@ -722,10 +839,10 @@ export default function App() {
         seriesText={bbSeriesText}
         showTimer={showRestTimer}
         timerLabel={bbTimerLabel}
-        timerTime={fmt(restRemaining)}
+        timerTime={bbState === 'circuit' ? String(restRemaining) : fmt(restRemaining)}
         timerSub={restSub}
         repCount={repCount}
-        showBtn={!showRestTimer}
+        showBtn={!showRestTimer && bbState !== 'circuit'}
         btnClass={btnCls}
         btnText={btnText}
         onAction={bbAction}

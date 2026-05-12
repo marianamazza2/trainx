@@ -51,7 +51,15 @@ export interface BlockState {
   completed: boolean
 }
 
-export type BBState = 'idle' | 'ready' | 'training' | 'switching' | 'resting' | 'next' | 'tabata-done'
+export type BBState = 'idle' | 'ready' | 'training' | 'switching' | 'resting' | 'next' | 'tabata-done' | 'circuit'
+
+export interface CircuitState {
+  bi: number
+  exercises: Exercise[]
+  totalRounds: number
+  currentRound: number
+  currentExIdx: number
+}
 
 export interface TabataState {
   bi: number
