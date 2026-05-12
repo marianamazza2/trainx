@@ -18,6 +18,8 @@ function beep(f = 800, d = 150) {
     setTimeout(() => { o.stop(); ctx.close() }, d)
   } catch {}
 }
+function beepWork() { beep(880, 90); setTimeout(() => beep(1100, 90), 140) }
+function beepRest() { beep(440, 350) }
 function vibrate(ms = 200) { try { navigator.vibrate(ms) } catch {} }
 function todayStr() { return new Date().toISOString().slice(0, 10) }
 function todayDayIndex() {
@@ -76,6 +78,8 @@ export default function App() {
   const [bbState, setBbState] = useState<BBState>('idle')
   const [bbBlockName, setBbBlockName] = useState('—')
   const [bbSeriesText, setBbSeriesText] = useState('')
+  const [currentExIdx, setCurrentExIdx] = useState(0)
+  const [bbTimerLabel, setBbTimerLabel] = useState('DESCANSO')
   const [showRestTimer, setShowRestTimer] = useState(false)
   const [restRemaining, setRestRemaining] = useState(0)
   const [restSub, setRestSub] = useState('')
@@ -94,6 +98,7 @@ export default function App() {
   const dayRef = useRef(day)
   const globalTimerSecsRef = useRef(0)
   const globalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const currentExIdxRef = useRef(0)
   const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const tabataIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -159,6 +164,7 @@ export default function App() {
     clearInterval(tabataIntervalRef.current!)
     setTabataState(null)
     tabataStateRef.current = null
+    setCurrentExIdx(0); currentExIdxRef.current = 0
     setMode(null)
   }
 
@@ -168,6 +174,7 @@ export default function App() {
     clearInterval(tabataIntervalRef.current!)
     setTabataState(null)
     tabataStateRef.current = null
+    setCurrentExIdx(0); currentExIdxRef.current = 0
     setDay(i)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -218,25 +225,52 @@ export default function App() {
       blockStatesRef.current = bs
       enterTrainingState(bi, bs[bi])
     } else if (state === 'training') {
-      startRestCountdown(bi)
+      const isMulti = (block.type === 'superserie' || block.type === 'biserie') && block.exercises.length > 1
+      if (isMulti && currentExIdxRef.current < block.exercises.length - 1) {
+        startSwitchCountdown(bi, currentExIdxRef.current + 1, blockStatesRef.current[bi])
+      } else {
+        startRestCountdown(bi)
+      }
     } else if (state === 'next') {
       enterTrainingState(bi, blockStatesRef.current[bi])
+    } else if (state === 'tabata-done') {
+      startRestCountdown(bi, true)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function enterTrainingState(_bi: number, bs: BlockState) {
-    setBbSeriesText(`Serie ${bs.currentSet} de ${bs.totalSets}`)
+  function enterTrainingState(bi: number, bs: BlockState, exIdx = 0) {
+    beepWork(); vibrate(100)
+    currentExIdxRef.current = exIdx
+    setCurrentExIdx(exIdx)
+    const m = modeRef.current!
+    const days = m === 'casa' ? CASA_DAYS : GYM_DAYS
+    const block = days[dayRef.current].blocks[bi]
+    const isMulti = (block.type === 'superserie' || block.type === 'biserie') && block.exercises.length > 1
+    if (isMulti) {
+      const ex = block.exercises[exIdx]
+      setBbSeriesText(`S${bs.currentSet}/${bs.totalSets} · Ej ${exIdx + 1}/${block.exercises.length}: ${ex.name}`)
+    } else {
+      setBbSeriesText(`Serie ${bs.currentSet} de ${bs.totalSets}`)
+    }
     setShowRestTimer(false)
     setBbState('training')
     bbStateRef.current = 'training'
   }
 
-  function startRestCountdown(bi: number) {
+  function startRestCountdown(bi: number, forceComplete = false) {
     const w = WEEKS[weekRef.current]
     const restSec = modeRef.current === 'casa' ? w.restSecCasa : w.restSecGym
     const bs = blockStatesRef.current[bi]
-    const isLast = bs.currentSet === bs.totalSets
+    const isLast = forceComplete || bs.currentSet === bs.totalSets
 
+    if (isLast) {
+      const sessionDone = markBlockDone(bi)
+      if (sessionDone) return
+    }
+
+    beepRest(); vibrate(200)
+    setBbTimerLabel('DESCANSO')
+    setCurrentExIdx(0); currentExIdxRef.current = 0
     setShowRestTimer(true)
     setRestRemaining(restSec)
     setRestSub(isLast ? 'Última serie completada' : `Serie ${bs.currentSet} de ${bs.totalSets} completada`)
@@ -255,7 +289,7 @@ export default function App() {
         setShowRestTimer(false)
 
         if (isLast) {
-          completeBlock(bi)
+          activateNextBlock(bi)
         } else {
           const current = [...blockStatesRef.current]
           current[bi] = { ...current[bi], currentSet: current[bi].currentSet + 1 }
@@ -269,7 +303,36 @@ export default function App() {
     }, 1000)
   }
 
-  function completeBlock(bi: number) {
+  function startSwitchCountdown(bi: number, nextExIdx: number, bs: BlockState) {
+    const m = modeRef.current!
+    const days = m === 'casa' ? CASA_DAYS : GYM_DAYS
+    const block = days[dayRef.current].blocks[bi]
+    const nextEx = block.exercises[nextExIdx]
+
+    beepRest(); vibrate(150)
+    setBbTimerLabel('CAMBIO')
+    setShowRestTimer(true)
+    setRestRemaining(5)
+    setRestSub(`→ ${nextEx.name}`)
+    setBbState('switching')
+    bbStateRef.current = 'switching'
+
+    let remaining = 5
+    clearInterval(restIntervalRef.current!)
+    restIntervalRef.current = setInterval(() => {
+      remaining--
+      setRestRemaining(remaining)
+      if (remaining <= 3 && remaining > 0) beep(600, 80)
+      if (remaining <= 0) {
+        clearInterval(restIntervalRef.current!)
+        setBbTimerLabel('DESCANSO')
+        setShowRestTimer(false)
+        enterTrainingState(bi, bs, nextExIdx)
+      }
+    }, 1000)
+  }
+
+  function markBlockDone(bi: number): boolean {
     const bs = [...blockStatesRef.current]
     bs[bi] = { ...bs[bi], completed: true }
     setBlockStates(bs)
@@ -288,9 +351,13 @@ export default function App() {
       setTimeout(() => {
         document.getElementById('session-complete')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }, 100)
-      return
+      return true
     }
+    return false
+  }
 
+  function activateNextBlock(bi: number) {
+    const bs = blockStatesRef.current
     const nextBi = bs.findIndex((b, i) => i > bi && !b.completed)
     if (nextBi >= 0) {
       setTimeout(() => {
@@ -302,6 +369,12 @@ export default function App() {
         document.getElementById(`acc-${nextBi}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         activateBlock(nextBi)
       }, 400)
+    }
+  }
+
+  function completeBlock(bi: number) {
+    if (!markBlockDone(bi)) {
+      activateNextBlock(bi)
     }
   }
 
@@ -324,6 +397,7 @@ export default function App() {
     }
     tabataStateRef.current = ts
     setTabataState({ ...ts })
+    beepWork(); vibrate(100)
 
     clearInterval(tabataIntervalRef.current!)
     tabataIntervalRef.current = setInterval(() => {
@@ -333,21 +407,28 @@ export default function App() {
       if (s.remaining <= 0) {
         beep(1000, 200); vibrate(200)
         if (s.phase === 'work') {
+          const isLastEx = s.currentExIdx === s.exercises.length - 1
+          const isLastRound = s.currentRound === s.totalRounds
+          if (isLastEx && isLastRound) {
+            clearInterval(tabataIntervalRef.current!)
+            const finishedBi = s.bi
+            setTabataState(null)
+            tabataStateRef.current = null
+            setBbState('tabata-done')
+            bbStateRef.current = 'tabata-done'
+            setActiveBlockIdx(finishedBi)
+            activeBlockIdxRef.current = finishedBi
+            return
+          }
           s.phase = 'rest'; s.remaining = s.restSec
+          beepRest(); vibrate(200)
         } else {
           s.currentExIdx++
           if (s.currentExIdx >= s.exercises.length) {
             s.currentExIdx = 0; s.currentRound++
-            if (s.currentRound > s.totalRounds) {
-              clearInterval(tabataIntervalRef.current!)
-              const finishedBi = s.bi
-              setTabataState(null)
-              tabataStateRef.current = null
-              completeBlock(finishedBi)
-              return
-            }
           }
           s.phase = 'work'; s.remaining = s.workSec
+          beepWork(); vibrate(100)
         }
       }
       setTabataState({ ...s })
@@ -376,15 +457,29 @@ export default function App() {
     }
     if (bbState === 'training') {
       const bs = blockStates[activeBlockIdx]
-      const isLast = bs?.currentSet === bs?.totalSets
+      const block = days[day]?.blocks[activeBlockIdx]
+      const isMulti = block && (block.type === 'superserie' || block.type === 'biserie') && block.exercises.length > 1
+      if (isMulti && currentExIdx < block.exercises.length - 1) {
+        return { cls: 'btn-done-set', text: '→ SIGUIENTE EJERCICIO' }
+      }
+      const isLastSet = bs?.currentSet === bs?.totalSets
+      if (isMulti) {
+        return {
+          cls: 'btn-done-set',
+          text: isLastSet ? '⏱ TERMINÉ ÚLTIMA SUPERSERIE → DESCANSO' : `⏱ TERMINÉ SUPERSERIE ${bs?.currentSet} → DESCANSO`,
+        }
+      }
       return {
         cls: 'btn-done-set',
-        text: isLast ? '⏱ TERMINÉ ÚLTIMA SERIE → DESCANSO' : `⏱ TERMINÉ SERIE ${bs?.currentSet} → DESCANSO`,
+        text: isLastSet ? '⏱ TERMINÉ ÚLTIMA SERIE → DESCANSO' : `⏱ TERMINÉ SERIE ${bs?.currentSet} → DESCANSO`,
       }
     }
     if (bbState === 'next') {
       const bs = blockStates[activeBlockIdx]
       return { cls: 'btn-next-set', text: `▶ SERIE ${bs?.currentSet} DE ${bs?.totalSets} — ¡VAMOS!` }
+    }
+    if (bbState === 'tabata-done') {
+      return { cls: 'btn-done-set', text: '⏱ INICIAR DESCANSO' }
     }
     return { cls: 'btn-start', text: '▶ INICIAR BLOQUE' }
   }
@@ -559,7 +654,7 @@ export default function App() {
         blockName={bbBlockName}
         seriesText={bbSeriesText}
         showTimer={showRestTimer}
-        timerLabel="DESCANSO"
+        timerLabel={bbTimerLabel}
         timerTime={fmt(restRemaining)}
         timerSub={restSub}
         showBtn={!showRestTimer}
