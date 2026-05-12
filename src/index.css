@@ -237,11 +237,14 @@ body {
 }
 .bottom-bar.visible { transform: translateX(-50%) translateY(0); }
 
-.bottom-bar-inner { padding: 12px 0 max(12px, env(safe-area-inset-bottom)); }
+.bottom-bar-inner {
+  padding: 12px 0 max(12px, env(safe-area-inset-bottom));
+  min-height: 140px;
+  display: flex; flex-direction: column; justify-content: center; gap: 10px;
+}
 
 .bottom-bar-info {
   display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 10px;
 }
 .bottom-bar-block-name {
   font-size: 0.7rem; font-weight: 700; color: var(--text-2);
@@ -250,7 +253,6 @@ body {
 .bottom-bar-series { font-size: 0.7rem; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; }
 
 .bottom-bar-middle {
-  height: calc(5rem + 20px);
   display: flex; align-items: center; justify-content: center;
 }
 

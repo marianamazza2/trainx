@@ -563,26 +563,30 @@ export default function App() {
   function enterCircuitWork(cs: CircuitState) {
     beepWork(); vibrate(100)
     const ex = cs.exercises[cs.currentExIdx]
+    const days = modeRef.current === 'casa' ? CASA_DAYS : GYM_DAYS
+    const block = days[dayRef.current].blocks[cs.bi]
+    const workSec = block.workSec ?? 40
+
     setBbSeriesText(`Ej ${cs.currentExIdx + 1}/${cs.exercises.length} · Ronda ${cs.currentRound}/${cs.totalRounds}`)
     setBbBlockName(ex?.name ?? '—')
     setShowRestTimer(false)
-    setRepCount(1)
+    setRepCount(workSec)
 
-    const totalReps = WEEKS[weekRef.current].reps
-    let tick = 1
+    let remaining = workSec
     clearInterval(circuitWorkIntervalRef.current!)
     circuitWorkIntervalRef.current = setInterval(() => {
       if (restPausedRef.current) return
-      tick++
-      if (tick > totalReps) {
+      remaining--
+      if (remaining <= 3 && remaining > 0) beep(600, 80)
+      if (remaining <= 0) {
         clearInterval(circuitWorkIntervalRef.current!)
         circuitWorkIntervalRef.current = null
         setRepCount(null)
         enterCircuitRest(circuitStateRef.current!)
       } else {
-        setRepCount(tick)
+        setRepCount(remaining)
       }
-    }, 1500)
+    }, 1000)
   }
 
   function enterCircuitRest(cs: CircuitState) {

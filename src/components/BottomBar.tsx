@@ -19,6 +19,8 @@ export default function BottomBar({
   showTimer, timerLabel, timerTime, timerSub,
   repCount, showBtn, exerciseActionLabel, btnClass, btnText, onAction,
 }: Props) {
+  const hasMiddleContent = showTimer || repCount != null
+
   return (
     <div className={`bottom-bar${visible ? ' visible' : ''}`}>
       <div className="bottom-bar-inner">
@@ -26,7 +28,7 @@ export default function BottomBar({
           <span className="bottom-bar-block-name">{blockName}</span>
           <span className="bottom-bar-series">{seriesText}</span>
         </div>
-        <div className="bottom-bar-middle">
+        <div className="bottom-bar-middle" style={!hasMiddleContent ? { display: 'none' } : undefined}>
           <div className={`bottom-bar-timer${showTimer ? ' active' : ''}`}>
             <div className="bottom-bar-timer-label">{timerLabel}</div>
             <div className="bottom-bar-timer-time">{timerTime}</div>
