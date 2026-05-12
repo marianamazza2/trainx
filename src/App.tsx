@@ -85,6 +85,9 @@ export default function App() {
   const [restSub, setRestSub] = useState('')
   const [globalTimerSecs, setGlobalTimerSecs] = useState(0)
   const [globalTimerRunning, setGlobalTimerRunning] = useState(false)
+  const [globalTimerPaused, setGlobalTimerPaused] = useState(false)
+  const [autoPlaySecs, setAutoPlaySecs] = useState<number | null>(null)
+  const [repCount, setRepCount] = useState<number | null>(null)
   const [tabataState, setTabataState] = useState<TabataState | null>(null)
   const [sessionComplete, setSessionComplete] = useState(false)
 
@@ -101,6 +104,9 @@ export default function App() {
   const currentExIdxRef = useRef(0)
   const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const tabataIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const autoPlaySecsRef = useRef<number | null>(null)
+  const repIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Sync refs on every render
   blockStatesRef.current = blockStates
@@ -138,6 +144,7 @@ export default function App() {
     globalTimerSecsRef.current = 0
     setGlobalTimerSecs(0)
     setGlobalTimerRunning(true)
+    setGlobalTimerPaused(false)
     globalTimerRef.current = setInterval(() => {
       globalTimerSecsRef.current++
       setGlobalTimerSecs(globalTimerSecsRef.current)
@@ -148,6 +155,71 @@ export default function App() {
     clearInterval(globalTimerRef.current!)
     globalTimerRef.current = null
     setGlobalTimerRunning(false)
+    setGlobalTimerPaused(false)
+  }
+
+  function toggleGlobalTimer() {
+    if (!globalTimerRunning) return
+    if (globalTimerRef.current) {
+      clearInterval(globalTimerRef.current!)
+      globalTimerRef.current = null
+      setGlobalTimerPaused(true)
+    } else {
+      setGlobalTimerPaused(false)
+      globalTimerRef.current = setInterval(() => {
+        globalTimerSecsRef.current++
+        setGlobalTimerSecs(globalTimerSecsRef.current)
+      }, 1000)
+    }
+  }
+
+  // ── Auto-play (next state) ─────────────────────────────────────────────────
+  function startAutoPlay(bi: number) {
+    clearInterval(autoPlayRef.current!)
+    autoPlaySecsRef.current = 8
+    setAutoPlaySecs(8)
+    autoPlayRef.current = setInterval(() => {
+      const next = (autoPlaySecsRef.current ?? 1) - 1
+      autoPlaySecsRef.current = next
+      setAutoPlaySecs(next)
+      if (next <= 0) {
+        clearInterval(autoPlayRef.current!)
+        autoPlayRef.current = null
+        autoPlaySecsRef.current = null
+        setAutoPlaySecs(null)
+        enterTrainingState(bi, blockStatesRef.current[bi])
+      }
+    }, 1000)
+  }
+
+  function cancelAutoPlay() {
+    clearInterval(autoPlayRef.current!)
+    autoPlayRef.current = null
+    autoPlaySecsRef.current = null
+    setAutoPlaySecs(null)
+  }
+
+  // ── Rep counter ────────────────────────────────────────────────────────────
+  function startRepCounter(totalReps: number) {
+    clearInterval(repIntervalRef.current!)
+    let count = 1
+    setRepCount(1)
+    repIntervalRef.current = setInterval(() => {
+      count++
+      if (count > totalReps) {
+        clearInterval(repIntervalRef.current!)
+        repIntervalRef.current = null
+        setRepCount(null)
+      } else {
+        setRepCount(count)
+      }
+    }, 1500)
+  }
+
+  function stopRepCounter() {
+    clearInterval(repIntervalRef.current!)
+    repIntervalRef.current = null
+    setRepCount(null)
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
@@ -160,6 +232,8 @@ export default function App() {
 
   function goBack() {
     stopGlobalTimer()
+    cancelAutoPlay()
+    stopRepCounter()
     clearInterval(restIntervalRef.current!)
     clearInterval(tabataIntervalRef.current!)
     setTabataState(null)
@@ -170,6 +244,8 @@ export default function App() {
 
   function selectDay(i: number) {
     stopGlobalTimer()
+    cancelAutoPlay()
+    stopRepCounter()
     clearInterval(restIntervalRef.current!)
     clearInterval(tabataIntervalRef.current!)
     setTabataState(null)
@@ -225,6 +301,7 @@ export default function App() {
       blockStatesRef.current = bs
       enterTrainingState(bi, bs[bi])
     } else if (state === 'training') {
+      stopRepCounter()
       const isMulti = (block.type === 'superserie' || block.type === 'biserie') && block.exercises.length > 1
       if (isMulti && currentExIdxRef.current < block.exercises.length - 1) {
         startSwitchCountdown(bi, currentExIdxRef.current + 1, blockStatesRef.current[bi])
@@ -232,6 +309,7 @@ export default function App() {
         startRestCountdown(bi)
       }
     } else if (state === 'next') {
+      cancelAutoPlay()
       enterTrainingState(bi, blockStatesRef.current[bi])
     } else if (state === 'tabata-done') {
       startRestCountdown(bi, true)
@@ -255,6 +333,9 @@ export default function App() {
     setShowRestTimer(false)
     setBbState('training')
     bbStateRef.current = 'training'
+    if (!block.exercises[exIdx]?.isIso) {
+      startRepCounter(WEEKS[weekRef.current].reps)
+    }
   }
 
   function startRestCountdown(bi: number, forceComplete = false) {
@@ -298,6 +379,7 @@ export default function App() {
           setBbState('next')
           bbStateRef.current = 'next'
           setBbSeriesText(`Serie ${current[bi].currentSet} de ${current[bi].totalSets}`)
+          startAutoPlay(bi)
         }
       }
     }, 1000)
@@ -470,7 +552,8 @@ export default function App() {
     }
     if (bbState === 'next') {
       const bs = blockStates[activeBlockIdx]
-      return { cls: 'btn-next-set', text: `▶ SERIE ${bs?.currentSet} DE ${bs?.totalSets} — ¡VAMOS!` }
+      const countdown = autoPlaySecs !== null ? ` (auto ${autoPlaySecs}s)` : ''
+      return { cls: 'btn-next-set', text: `▶ SERIE ${bs?.currentSet} DE ${bs?.totalSets}${countdown} — ¡VAMOS!` }
     }
     if (bbState === 'tabata-done') {
       return { cls: 'btn-done-set', text: '⏱ INICIAR DESCANSO' }
@@ -516,10 +599,14 @@ export default function App() {
             <span className="mode-label">{mode === 'casa' ? 'CASA' : 'GYM'}</span>
           </div>
 
-          <div className={`global-timer${globalTimerRunning ? ' active' : ''}`}>
+          <div
+            className={`global-timer${globalTimerRunning ? ' active' : ''}${globalTimerPaused ? ' paused' : ''}`}
+            onClick={toggleGlobalTimer}
+          >
             <div className="global-timer-dot" />
             <span className="global-timer-label">Sesión</span>
             <span className="global-timer-time">{fmt(globalTimerSecs)}</span>
+            {globalTimerPaused && <span className="global-timer-pause-icon">⏸</span>}
           </div>
 
           <div className="week-selector">
@@ -579,6 +666,7 @@ export default function App() {
               blockState={blockStates[bi] ?? { currentSet: 0, totalSets: 0, started: false, completed: false }}
               isOpen={openBlocks.has(bi)}
               isActive={activeBlockIdx === bi}
+              activeExIdx={activeBlockIdx === bi && bbState === 'training' ? currentExIdx : -1}
               week={currentWeekData}
               mode={mode}
               onToggle={() => handleAccordionToggle(bi)}
@@ -636,6 +724,7 @@ export default function App() {
         timerLabel={bbTimerLabel}
         timerTime={fmt(restRemaining)}
         timerSub={restSub}
+        repCount={repCount}
         showBtn={!showRestTimer}
         btnClass={btnCls}
         btnText={btnText}

@@ -6,6 +6,7 @@ interface Props {
   timerLabel: string
   timerTime: string
   timerSub: string
+  repCount?: number | null
   showBtn: boolean
   btnClass: string
   btnText: string
@@ -15,7 +16,7 @@ interface Props {
 export default function BottomBar({
   visible, blockName, seriesText,
   showTimer, timerLabel, timerTime, timerSub,
-  showBtn, btnClass, btnText, onAction,
+  repCount, showBtn, btnClass, btnText, onAction,
 }: Props) {
   return (
     <div className={`bottom-bar${visible ? ' visible' : ''}`}>
@@ -29,6 +30,11 @@ export default function BottomBar({
           <div className="bottom-bar-timer-time">{timerTime}</div>
           <div className="bottom-bar-timer-sub">{timerSub}</div>
         </div>
+        {repCount != null && (
+          <div className="bottom-bar-rep-counter">
+            <div className="bottom-bar-rep-num">{repCount}</div>
+          </div>
+        )}
         {showBtn && (
           <button className={`bottom-bar-btn ${btnClass}`} onClick={onAction}>
             {btnText}

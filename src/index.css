@@ -88,11 +88,15 @@ body {
 .global-timer {
   display: none; align-items: center; justify-content: center; gap: 10px;
   padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+  cursor: pointer; user-select: none;
 }
 .global-timer.active { display: flex; }
 .global-timer-time { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 2px; color: var(--accent); }
 .global-timer-label { font-size: 0.6rem; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
 .global-timer-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); animation: pulse 1.5s ease infinite; }
+.global-timer.paused .global-timer-dot { background: var(--text-3); animation: none; }
+.global-timer.paused .global-timer-time { color: var(--text-3); }
+.global-timer-pause-icon { font-size: 0.9rem; color: var(--text-3); }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 /* Week Selector */
@@ -179,6 +183,8 @@ body {
 .exercise.no-video { cursor: default; }
 .exercise:last-child { margin-bottom: 0; }
 .exercise:not(.no-video):active { transform: scale(0.98); background: var(--surface-3); }
+.exercise.exercise-active { background: var(--accent-dim); border: 1px solid var(--accent-glow); }
+.exercise.exercise-active .exercise-name { color: var(--accent); }
 .exercise-inner { display: flex; align-items: center; padding: 12px; gap: 12px; }
 .exercise-play {
   width: 42px; height: 42px; background: var(--surface-3); border-radius: 10px;
@@ -235,6 +241,21 @@ body {
   letter-spacing: 0.5px; text-transform: uppercase;
 }
 .bottom-bar-series { font-size: 0.7rem; font-weight: 700; color: var(--accent); }
+
+.bottom-bar-rep-counter {
+  display: flex; align-items: center; justify-content: center;
+  padding: 4px 0 8px;
+}
+.bottom-bar-rep-num {
+  font-family: 'Bebas Neue', sans-serif; font-size: 5rem; line-height: 1;
+  color: var(--accent); letter-spacing: 4px;
+  animation: rep-pop 0.2s ease;
+}
+@keyframes rep-pop {
+  0% { transform: scale(0.7); opacity: 0.4; }
+  60% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
 
 .bottom-bar-btn {
   width: 100%; padding: 16px; border: none; border-radius: 14px;

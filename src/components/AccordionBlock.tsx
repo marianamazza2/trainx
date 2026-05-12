@@ -6,13 +6,14 @@ interface Props {
   blockState: BlockState
   isOpen: boolean
   isActive: boolean
+  activeExIdx: number
   week: Week
   mode: Mode
   onToggle: () => void
   onVideoOpen: (url: string) => void
 }
 
-export default function AccordionBlock({ index, block, blockState, isOpen, isActive, week, mode, onToggle, onVideoOpen }: Props) {
+export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, week, mode, onToggle, onVideoOpen }: Props) {
   const isTabata = block.type === 'tabata' || block.type === 'hiit'
   const num = String(index + 1).padStart(2, '0')
   const rest = mode === 'casa' ? week.restCasa : week.restGym
@@ -72,6 +73,7 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
 
           {block.exercises.map((ex, ei) => {
             const hasVideo = !!ex.video
+            const isCurrentEx = isActive && activeExIdx === ei
             const repsText = ex.timeLabel
               ? ex.timeLabel
               : ex.repsLabel
@@ -81,7 +83,7 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
             return (
               <div key={ei}>
                 <div
-                  className={`exercise${hasVideo ? '' : ' no-video'}`}
+                  className={`exercise${hasVideo ? '' : ' no-video'}${isCurrentEx ? ' exercise-active' : ''}`}
                   onClick={hasVideo ? () => onVideoOpen(ex.video!) : undefined}
                 >
                   <div className="exercise-inner">
