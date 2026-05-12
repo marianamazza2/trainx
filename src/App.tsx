@@ -550,7 +550,6 @@ export default function App() {
                 {d.name}
               </button>
             ))}
-            <button className="day-tab" style={{ opacity: 0.3, cursor: 'default' }}>Dom</button>
           </div>
         </div>
 
@@ -561,20 +560,13 @@ export default function App() {
           </div>
 
           {currentDay.isCasaCardio && (
-            <>
-              <div className="cardio-note">
-                <div className="cardio-note-icon">🏃</div>
-                <div>
-                  <h4>Cardio LISS — 1 hora</h4>
-                  <p>Caminata a ritmo constante, marcha elevando rodillas, subir y bajar escaleras, o saltar la cuerda a ritmo ligero.</p>
-                </div>
+            <div className="cardio-note">
+              <div className="cardio-note-icon">🏃</div>
+              <div>
+                <h4>Cardio LISS — 1 hora</h4>
+                <p>Caminata a ritmo constante, marcha elevando rodillas, subir y bajar escaleras, o saltar la cuerda a ritmo ligero.</p>
               </div>
-              <div className="sunday-card" style={{ marginTop: 16 }}>
-                <div className="sunday-icon">☕</div>
-                <h3>DOMINGO — DESCANSO ACTIVO</h3>
-                <p>Actividad ligera: caminata, movilidad, estiramientos.</p>
-              </div>
-            </>
+            </div>
           )}
 
           {!currentDay.isCasaCardio && blockStates.length > 0 && (
@@ -632,13 +624,6 @@ export default function App() {
             </div>
           )}
 
-          {day === 5 && (
-            <div className="sunday-card">
-              <div className="sunday-icon">☕</div>
-              <h3>DOMINGO — DESCANSO ACTIVO</h3>
-              <p>Actividad ligera: caminata, movilidad, estiramientos.</p>
-            </div>
-          )}
 
           <div id="session-complete" className={`session-complete${sessionComplete ? ' active' : ''}`}>
             <div className="complete-icon">🏆</div>
