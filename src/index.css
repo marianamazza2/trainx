@@ -184,8 +184,14 @@ body {
 .exercise.no-video { cursor: default; }
 .exercise:last-child { margin-bottom: 0; }
 .exercise:not(.no-video):active { transform: scale(0.98); background: var(--surface-3); }
-.exercise.exercise-active { background: var(--accent-dim); border: 1px solid var(--accent-glow); }
+.exercise.exercise-active { background: var(--accent-dim); border: 1px solid var(--accent); animation: exerciseBlink 1.2s ease-in-out infinite; }
 .exercise.exercise-active .exercise-name { color: var(--accent); }
+@keyframes exerciseBlink {
+  0%, 100% { border-color: var(--accent); box-shadow: 0 0 0 0 transparent; }
+  50% { border-color: rgba(212,233,0,0.4); box-shadow: 0 0 10px 2px var(--accent-glow); }
+}
+.exercise.exercise-series-done { background: var(--accent-dim); border: 1px solid rgba(212,233,0,0.3); }
+.exercise.exercise-series-done .exercise-name { color: var(--accent); }
 .exercise-inner { display: flex; align-items: center; padding: 12px; gap: 12px; }
 .exercise-play {
   width: 42px; height: 42px; background: var(--surface-3); border-radius: 10px;
@@ -241,7 +247,7 @@ body {
   font-size: 0.7rem; font-weight: 700; color: var(--text-2);
   letter-spacing: 0.5px; text-transform: uppercase;
 }
-.bottom-bar-series { font-size: 0.7rem; font-weight: 700; color: var(--accent); }
+.bottom-bar-series { font-size: 0.7rem; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; }
 
 .bottom-bar-middle {
   height: calc(5rem + 20px);
@@ -272,6 +278,18 @@ body {
 .bottom-bar-btn.btn-start { background: var(--accent); color: #0a0a0a; }
 .bottom-bar-btn.btn-done-set { background: var(--surface-3); color: var(--accent); border: 1px solid var(--accent-glow); }
 .bottom-bar-btn.btn-next-set { background: var(--accent); color: #0a0a0a; }
+
+.bottom-bar-exercise-action {
+  width: 100%; padding: 14px 8px; border: none; border-radius: 14px;
+  background: var(--surface-3);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 2px;
+  color: var(--text-1); cursor: pointer; transition: all 0.15s;
+}
+.bottom-bar-exercise-action:active { transform: scale(0.97); }
+.exercise-action-arrow {
+  font-size: 1.4rem; color: var(--accent); line-height: 1;
+}
 
 .bottom-bar-timer {
   display: none;

@@ -88,9 +88,11 @@ export default function App() {
   const [globalTimerPaused, setGlobalTimerPaused] = useState(false)
   const [autoPlaySecs, setAutoPlaySecs] = useState<number | null>(null)
   const [repCount, setRepCount] = useState<number | null>(null)
+  const [exerciseActionLabel, setExerciseActionLabel] = useState<string | null>(null)
   const [tabataState, setTabataState] = useState<TabataState | null>(null)
   const [, setCircuitState] = useState<CircuitState | null>(null)
   const [sessionComplete, setSessionComplete] = useState(false)
+  const [completedExIdxs, setCompletedExIdxs] = useState<number[]>([])
 
   // Refs so interval callbacks always read current values
   const blockStatesRef = useRef<BlockState[]>([])
@@ -109,6 +111,7 @@ export default function App() {
   const restPausedRef = useRef(false)
   const circuitWorkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const circuitRestIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const circuitPrepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const circuitStateRef = useRef<CircuitState | null>(null)
   const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const autoPlaySecsRef = useRef<number | null>(null)
@@ -243,8 +246,10 @@ export default function App() {
   }
 
   function stopCircuit() {
+    clearInterval(circuitPrepIntervalRef.current!)
     clearInterval(circuitWorkIntervalRef.current!)
     clearInterval(circuitRestIntervalRef.current!)
+    circuitPrepIntervalRef.current = null
     circuitWorkIntervalRef.current = null
     circuitRestIntervalRef.current = null
     circuitStateRef.current = null
@@ -291,6 +296,7 @@ export default function App() {
     setShowRestTimer(false)
     setBbState('ready')
     bbStateRef.current = 'ready'
+    setCompletedExIdxs([])
     setOpenBlocks(prev => { const next = new Set(prev); next.add(bi); return next })
   }
 
@@ -347,15 +353,18 @@ export default function App() {
     beepWork(); vibrate(100)
     currentExIdxRef.current = exIdx
     setCurrentExIdx(exIdx)
+    setCompletedExIdxs(Array.from({ length: exIdx }, (_, i) => i))
     const m = modeRef.current!
     const days = m === 'casa' ? CASA_DAYS : GYM_DAYS
     const block = days[dayRef.current].blocks[bi]
     const isMulti = (block.type === 'superserie' || block.type === 'biserie') && block.exercises.length > 1
     if (isMulti) {
       const ex = block.exercises[exIdx]
-      setBbSeriesText(`S${bs.currentSet}/${bs.totalSets} · Ej ${exIdx + 1}/${block.exercises.length}: ${ex.name}`)
+      setBbSeriesText(`Ejercicio ${exIdx + 1}/${block.exercises.length}`)
+      setExerciseActionLabel(ex.name.toUpperCase())
     } else {
       setBbSeriesText(`Serie ${bs.currentSet} de ${bs.totalSets}`)
+      setExerciseActionLabel(null)
     }
     setShowRestTimer(false)
     setBbState('training')
@@ -394,7 +403,9 @@ export default function App() {
     beepRest(); vibrate(200)
     setBbTimerLabel('DESCANSO')
     setBbSeriesText('')
+    setExerciseActionLabel(null)
     setCurrentExIdx(0); currentExIdxRef.current = 0
+    setCompletedExIdxs([])
     setShowRestTimer(true)
     setRestRemaining(restSec)
     setRestSub(isLast ? 'Última serie completada' : `Serie ${bs.currentSet} de ${bs.totalSets} completada`)
@@ -438,6 +449,7 @@ export default function App() {
 
     beepRest(); vibrate(150)
     setBbTimerLabel('CAMBIO')
+    setExerciseActionLabel(null)
     setShowRestTimer(true)
     setRestRemaining(5)
     setRestSub(`→ ${nextEx.name}`)
@@ -521,10 +533,31 @@ export default function App() {
     }
     circuitStateRef.current = cs
     setCircuitState({ ...cs })
-    setBbState('circuit')
-    bbStateRef.current = 'circuit'
+    setBbState('circuit-prep')
+    bbStateRef.current = 'circuit-prep'
 
-    enterCircuitWork(cs)
+    const PREP_SECS = 10
+    setShowRestTimer(true)
+    setBbTimerLabel('Iniciando circuito en:')
+    setRestRemaining(PREP_SECS)
+    setRestSub('')
+
+    let remaining = PREP_SECS
+    clearInterval(circuitPrepIntervalRef.current!)
+    circuitPrepIntervalRef.current = setInterval(() => {
+      if (restPausedRef.current) return
+      remaining--
+      setRestRemaining(remaining)
+      if (remaining <= 3 && remaining > 0) beep(600, 100)
+      if (remaining <= 0) {
+        clearInterval(circuitPrepIntervalRef.current!)
+        circuitPrepIntervalRef.current = null
+        setShowRestTimer(false)
+        setBbState('circuit')
+        bbStateRef.current = 'circuit'
+        enterCircuitWork(circuitStateRef.current!)
+      }
+    }, 1000)
   }
 
   function enterCircuitWork(cs: CircuitState) {
@@ -808,6 +841,7 @@ export default function App() {
               isOpen={openBlocks.has(bi)}
               isActive={activeBlockIdx === bi}
               activeExIdx={activeBlockIdx === bi && bbState === 'training' ? currentExIdx : -1}
+              completedExIdxs={activeBlockIdx === bi ? completedExIdxs : []}
               week={currentWeekData}
               mode={mode}
               onToggle={() => handleAccordionToggle(bi)}
@@ -863,10 +897,11 @@ export default function App() {
         seriesText={bbSeriesText}
         showTimer={showRestTimer}
         timerLabel={bbTimerLabel}
-        timerTime={bbState === 'circuit' ? String(restRemaining) : fmt(restRemaining)}
+        timerTime={bbState === 'circuit' || bbState === 'circuit-prep' ? String(restRemaining) : fmt(restRemaining)}
         timerSub={restSub}
         repCount={repCount}
-        showBtn={!showRestTimer && bbState !== 'circuit'}
+        showBtn={!showRestTimer && bbState !== 'circuit' && bbState !== 'circuit-prep' && !exerciseActionLabel}
+        exerciseActionLabel={exerciseActionLabel}
         btnClass={btnCls}
         btnText={btnText}
         onAction={bbAction}

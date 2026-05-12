@@ -8,6 +8,7 @@ interface Props {
   timerSub: string
   repCount?: number | null
   showBtn: boolean
+  exerciseActionLabel?: string | null
   btnClass: string
   btnText: string
   onAction: () => void
@@ -16,7 +17,7 @@ interface Props {
 export default function BottomBar({
   visible, blockName, seriesText,
   showTimer, timerLabel, timerTime, timerSub,
-  repCount, showBtn, btnClass, btnText, onAction,
+  repCount, showBtn, exerciseActionLabel, btnClass, btnText, onAction,
 }: Props) {
   return (
     <div className={`bottom-bar${visible ? ' visible' : ''}`}>
@@ -37,13 +38,20 @@ export default function BottomBar({
             </div>
           )}
         </div>
-        <button
-          className={`bottom-bar-btn ${btnClass}`}
-          onClick={onAction}
-          style={!showBtn ? { visibility: 'hidden', pointerEvents: 'none' } : undefined}
-        >
-          {btnText}
-        </button>
+        {exerciseActionLabel ? (
+          <button className="bottom-bar-exercise-action" onClick={onAction}>
+            <span>{exerciseActionLabel}</span>
+            <span className="exercise-action-arrow">→</span>
+          </button>
+        ) : (
+          <button
+            className={`bottom-bar-btn ${btnClass}`}
+            onClick={onAction}
+            style={!showBtn ? { display: 'none' } : undefined}
+          >
+            {btnText}
+          </button>
+        )}
       </div>
     </div>
   )

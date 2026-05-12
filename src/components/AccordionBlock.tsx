@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import type { Block, BlockState, Mode, Week } from '../types/workout'
 
 interface Props {
@@ -7,13 +8,26 @@ interface Props {
   isOpen: boolean
   isActive: boolean
   activeExIdx: number
+  completedExIdxs: number[]
   week: Week
   mode: Mode
   onToggle: () => void
   onVideoOpen: (url: string) => void
 }
 
-export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, week, mode, onToggle, onVideoOpen }: Props) {
+export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, completedExIdxs, week, mode, onToggle, onVideoOpen }: Props) {
+  const exerciseRefs = useRef<(HTMLDivElement | null)[]>([])
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (activeExIdx >= 0 && exerciseRefs.current[activeExIdx]) {
+      clearTimeout(scrollTimerRef.current!)
+      scrollTimerRef.current = setTimeout(() => {
+        exerciseRefs.current[activeExIdx]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 350)
+    }
+  }, [activeExIdx])
+
   const isTabata = block.type === 'tabata' || block.type === 'hiit'
   const num = String(index + 1).padStart(2, '0')
   const rest = mode === 'casa' ? week.restCasa : week.restGym
@@ -74,6 +88,7 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
           {block.exercises.map((ex, ei) => {
             const hasVideo = !!ex.video
             const isCurrentEx = isActive && activeExIdx === ei
+            const isDoneInSeries = isActive && completedExIdxs.includes(ei)
             const repsText = ex.timeLabel
               ? ex.timeLabel
               : ex.repsLabel
@@ -83,7 +98,8 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
             return (
               <div key={ei}>
                 <div
-                  className={`exercise${hasVideo ? '' : ' no-video'}${isCurrentEx ? ' exercise-active' : ''}`}
+                  ref={el => { exerciseRefs.current[ei] = el }}
+                  className={`exercise${hasVideo ? '' : ' no-video'}${isCurrentEx ? ' exercise-active' : isDoneInSeries ? ' exercise-series-done' : ''}`}
                   onClick={hasVideo ? () => onVideoOpen(ex.video!) : undefined}
                 >
                   <div className="exercise-inner">
