@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Mode, BlockState, BBState, TabataState, CircuitState } from './types/workout'
 import { WEEKS, CASA_DAYS, GYM_DAYS, TREADMILL } from './data/workout'
 import AccordionBlock from './components/AccordionBlock'
-import BottomBar from './components/BottomBar'
 import TabataOverlay from './components/TabataOverlay'
 
 // ── Utils ────────────────────────────────────────────────────────────────────
@@ -89,6 +88,7 @@ export default function App() {
   const [tabataState, setTabataState] = useState<TabataState | null>(null)
   const [, setCircuitState] = useState<CircuitState | null>(null)
   const [sessionComplete, setSessionComplete] = useState(false)
+  const [sessionStarted, setSessionStarted] = useState(false)
   const [completedExIdxs, setCompletedExIdxs] = useState<number[]>([])
 
   // Refs so interval callbacks always read current values
@@ -113,6 +113,7 @@ export default function App() {
   const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const autoPlaySecsRef = useRef<number | null>(null)
   const repIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const sessionStartedRef = useRef(false)
 
   // Sync refs on every render
   blockStatesRef.current = blockStates
@@ -122,6 +123,7 @@ export default function App() {
   modeRef.current = mode
   dayRef.current = day
   globalTimerRunningRef.current = globalTimerRunning
+  sessionStartedRef.current = sessionStarted
 
   // ── Init day content ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -135,6 +137,8 @@ export default function App() {
     bbStateRef.current = 'idle'
     setShowRestTimer(false)
     setSessionComplete(false)
+    setSessionStarted(false)
+    sessionStartedRef.current = false
     stopGlobalTimer()
     clearInterval(restIntervalRef.current!)
 
@@ -276,6 +280,8 @@ export default function App() {
     setTabataState(null)
     tabataStateRef.current = null
     setCurrentExIdx(0); currentExIdxRef.current = 0
+    setSessionStarted(false)
+    sessionStartedRef.current = false
     setDay(i)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -285,10 +291,35 @@ export default function App() {
     setActiveBlockIdx(bi)
     activeBlockIdxRef.current = bi
     setShowRestTimer(false)
-    setBbState('ready')
-    bbStateRef.current = 'ready'
+    clearInterval(restIntervalRef.current!)
+    cancelAutoPlay()
     setCompletedExIdxs([])
     setOpenBlocks(prev => { const next = new Set(prev); next.add(bi); return next })
+    if (sessionStartedRef.current) {
+      setTimeout(() => autoStartBlock(bi), 600)
+    }
+  }
+
+  function autoStartBlock(bi: number) {
+    if (activeBlockIdxRef.current !== bi) return
+    if (!sessionStartedRef.current) return
+    const m = modeRef.current!
+    const days = m === 'casa' ? CASA_DAYS : GYM_DAYS
+    const block = days[dayRef.current].blocks[bi]
+    const isTabata = block.type === 'tabata' || block.type === 'hiit'
+
+    if (isTabata) {
+      if (block.type === 'hiit') { startCircuit(bi); return }
+      startTabata(bi); return
+    }
+
+    const bs = [...blockStatesRef.current]
+    if (!bs[bi].started || bs[bi].currentSet === 0) {
+      bs[bi] = { ...bs[bi], started: true, currentSet: 1 }
+      setBlockStates(bs)
+      blockStatesRef.current = bs
+    }
+    enterTrainingState(bi, bs[bi])
   }
 
   function handleAccordionToggle(bi: number) {
@@ -298,47 +329,10 @@ export default function App() {
       return next
     })
     const bs = blockStatesRef.current[bi]
-    if (bs && !bs.completed && !bs.started) {
+    if (bs && !bs.completed) {
       activateBlock(bi)
     }
   }
-
-  // ── Bottom bar action ─────────────────────────────────────────────────────
-  const bbAction = useCallback(() => {
-    const bi = activeBlockIdxRef.current
-    if (bi < 0) return
-    const m = modeRef.current!
-    const days = m === 'casa' ? CASA_DAYS : GYM_DAYS
-    const block = days[dayRef.current].blocks[bi]
-    const isTabata = block.type === 'tabata' || block.type === 'hiit'
-    const state = bbStateRef.current
-
-    if (state === 'ready') {
-      if (!globalTimerRef.current) startGlobalTimer()
-      if (isTabata) {
-        if (block.type === 'hiit') { startCircuit(bi); return }
-        startTabata(bi); return
-      }
-      const bs = [...blockStatesRef.current]
-      bs[bi] = { ...bs[bi], started: true, currentSet: 1 }
-      setBlockStates(bs)
-      blockStatesRef.current = bs
-      enterTrainingState(bi, bs[bi])
-    } else if (state === 'training') {
-      stopRepCounter()
-      const isMulti = (block.type === 'superserie' || block.type === 'biserie') && block.exercises.length > 1
-      if (isMulti && currentExIdxRef.current < block.exercises.length - 1) {
-        startSwitchCountdown(bi, currentExIdxRef.current + 1, blockStatesRef.current[bi])
-      } else {
-        startRestCountdown(bi)
-      }
-    } else if (state === 'next') {
-      cancelAutoPlay()
-      enterTrainingState(bi, blockStatesRef.current[bi])
-    } else if (state === 'tabata-done') {
-      startRestCountdown(bi, true)
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function enterTrainingState(bi: number, _bs: BlockState, exIdx = 0) {
     beepWork(); vibrate(100)
@@ -639,15 +633,9 @@ export default function App() {
             const finishedBi = s.bi
             setTabataState(null)
             tabataStateRef.current = null
-            const newBs = [...blockStatesRef.current]
-            newBs[finishedBi] = { ...newBs[finishedBi], completed: true }
-            setBlockStates(newBs)
-            blockStatesRef.current = newBs
-            saveSession(modeRef.current!, dayRef.current, newBs.map(b => b.completed))
-            setBbState('tabata-done')
-            bbStateRef.current = 'tabata-done'
             setActiveBlockIdx(finishedBi)
             activeBlockIdxRef.current = finishedBi
+            startRestCountdown(finishedBi, true)
             return
           }
           s.phase = 'rest'; s.remaining = s.restSec
@@ -667,10 +655,10 @@ export default function App() {
 
   function closeTabata() {
     clearInterval(tabataIntervalRef.current!)
-    const bi = tabataStateRef.current?.bi ?? activeBlockIdxRef.current
-    setTabataState(null)
     tabataStateRef.current = null
-    activateBlock(bi)
+    setTabataState(null)
+    setBbState('idle')
+    bbStateRef.current = 'idle'
   }
 
   // ── Derived values for render ─────────────────────────────────────────────
@@ -679,44 +667,9 @@ export default function App() {
   const currentWeekData = WEEKS[week]
   const rest = mode === 'casa' ? currentWeekData.restCasa : currentWeekData.restGym
 
-  function getBtnProps(): { cls: string; text: string } {
-    if (bbState === 'ready') {
-      const block = days[day]?.blocks[activeBlockIdx]
-      const isTabata = block?.type === 'tabata' || block?.type === 'hiit'
-      return { cls: 'btn-start', text: isTabata ? `▶ INICIAR ${block?.type === 'hiit' ? 'CIRCUITO' : 'TABATA'}` : '▶ INICIAR BLOQUE' }
-    }
-    if (bbState === 'training') {
-      const bs = blockStates[activeBlockIdx]
-      const block = days[day]?.blocks[activeBlockIdx]
-      const isMulti = block && (block.type === 'superserie' || block.type === 'biserie') && block.exercises.length > 1
-      if (isMulti && currentExIdx < block.exercises.length - 1) {
-        return { cls: 'btn-done-set', text: '→ SIGUIENTE EJERCICIO' }
-      }
-      const isLastSet = bs?.currentSet === bs?.totalSets
-      if (isMulti) {
-        return {
-          cls: 'btn-done-set',
-          text: isLastSet ? '⏱ TERMINÉ ÚLTIMA SUPERSERIE → DESCANSO' : `⏱ TERMINÉ SUPERSERIE ${bs?.currentSet} → DESCANSO`,
-        }
-      }
-      return {
-        cls: 'btn-done-set',
-        text: isLastSet ? '⏱ TERMINÉ ÚLTIMA SERIE → DESCANSO' : `⏱ TERMINÉ SERIE ${bs?.currentSet} → DESCANSO`,
-      }
-    }
-    if (bbState === 'next') {
-      const bs = blockStates[activeBlockIdx]
-      const countdown = autoPlaySecs !== null ? ` (auto ${autoPlaySecs}s)` : ''
-      return { cls: 'btn-next-set', text: `▶ SERIE ${bs?.currentSet} DE ${bs?.totalSets}${countdown} — ¡VAMOS!` }
-    }
-    if (bbState === 'tabata-done') {
-      return { cls: 'btn-done-set', text: '⏱ INICIAR DESCANSO' }
-    }
-    return { cls: 'btn-start', text: '▶ INICIAR BLOQUE' }
-  }
-
-  const { cls: btnCls, text: btnText } = getBtnProps()
-  const bbVisible = activeBlockIdx >= 0 && bbState !== 'idle' && !tabataState && !sessionComplete
+  const showStartBtn = !sessionStarted && !sessionComplete &&
+    !currentDay.isCasaCardio && !currentDay.isGymCardio &&
+    blockStates.some(b => !b.completed)
 
   // ── Mode Select Screen ────────────────────────────────────────────────────
   if (!mode) {
@@ -763,6 +716,18 @@ export default function App() {
             {globalTimerRunning && <span className="global-timer-pause-icon">{globalTimerPaused ? '▶' : '⏸'}</span>}
           </div>
 
+          {sessionStarted && showRestTimer && (
+            <div className="top-action-bar">
+              <div className="top-action-timer">
+                <span className="top-action-timer-label">{bbTimerLabel}</span>
+                <span className="top-action-timer-time">
+                  {bbState === 'circuit' || bbState === 'circuit-prep' ? String(restRemaining) : fmt(restRemaining)}
+                </span>
+                {restSub && <span className="top-action-timer-sub">{restSub}</span>}
+              </div>
+            </div>
+          )}
+
           <div className="week-selector">
             {WEEKS.map((w, i) => (
               <button key={i} className={`week-btn${i === week ? ' active' : ''}`} onClick={() => setWeek(i)}>
@@ -793,6 +758,21 @@ export default function App() {
             <h1>{currentDay.name.toUpperCase()}</h1>
             <div className="day-muscle">{currentDay.muscle}</div>
           </div>
+
+          {showStartBtn && (
+            <button
+              className="start-session-btn"
+              onClick={() => {
+                sessionStartedRef.current = true
+                setSessionStarted(true)
+                startGlobalTimer()
+                const bi = activeBlockIdxRef.current
+                if (bi >= 0) setTimeout(() => autoStartBlock(bi), 300)
+              }}
+            >
+              ▶ COMENZAR SESIÓN
+            </button>
+          )}
 
           {currentDay.isCasaCardio && (
             <div className="cardio-note">
@@ -827,6 +807,11 @@ export default function App() {
               mode={mode}
               onToggle={() => handleAccordionToggle(bi)}
               onVideoOpen={(url) => window.open(url, '_blank')}
+              isResting={activeBlockIdx === bi && showRestTimer}
+              restDisplay={fmt(restRemaining)}
+              restActiveLabel={activeBlockIdx === bi ? bbTimerLabel : undefined}
+              restActiveSub={activeBlockIdx === bi ? restSub : undefined}
+              nextSetSecs={activeBlockIdx === bi && bbState === 'next' ? autoPlaySecs : null}
             />
           ))}
 
@@ -871,18 +856,6 @@ export default function App() {
           </div>
         </div>
       </div>
-
-      <BottomBar
-        visible={bbVisible}
-        showTimer={showRestTimer}
-        timerLabel={bbTimerLabel}
-        timerTime={bbState === 'circuit' || bbState === 'circuit-prep' ? String(restRemaining) : fmt(restRemaining)}
-        timerSub={restSub}
-        showBtn={!showRestTimer && bbState !== 'circuit' && bbState !== 'circuit-prep'}
-        btnClass={btnCls}
-        btnText={btnText}
-        onAction={bbAction}
-      />
 
       <TabataOverlay tabataState={tabataState} onClose={closeTabata} />
     </>

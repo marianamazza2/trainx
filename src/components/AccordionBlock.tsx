@@ -14,9 +14,14 @@ interface Props {
   mode: Mode
   onToggle: () => void
   onVideoOpen: (url: string) => void
+  isResting?: boolean
+  restDisplay?: string
+  restActiveLabel?: string
+  restActiveSub?: string
+  nextSetSecs?: number | null
 }
 
-export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, completedExIdxs = [], repCount, week, mode, onToggle, onVideoOpen }: Props) {
+export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, completedExIdxs = [], repCount, week, mode, onToggle, onVideoOpen, isResting, restDisplay, restActiveLabel, restActiveSub, nextSetSecs }: Props) {
   const exerciseRefs = useRef<(HTMLDivElement | null)[]>([])
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -32,6 +37,14 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
   const isTabata = block.type === 'tabata' || block.type === 'hiit'
   const num = String(index + 1).padStart(2, '0')
   const rest = mode === 'casa' ? week.restCasa : week.restGym
+  const restSec = mode === 'casa' ? week.restSecCasa : week.restSecGym
+
+  function fmtRestShort(sec: number): string {
+    if (sec < 60) return `${sec}"`
+    const m = Math.floor(sec / 60)
+    const s = sec % 60
+    return s === 0 ? `${m}'` : `${m}'${s}"`
+  }
 
   const subtitle = blockState.completed
     ? 'Completado ✓'
@@ -106,12 +119,7 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
                   <div className="exercise-inner">
                     <div className={`exercise-play${hasVideo ? '' : ' no-video'}`} />
                     <div className="exercise-info">
-                      <div className="exercise-name">
-                      {ex.name}
-                      {isCurrentEx && repCount != null && (
-                        <span className="exercise-rep-count">{repCount}</span>
-                      )}
-                    </div>
+                      <div className="exercise-name">{ex.name}</div>
                       <div className="exercise-meta">
                         <span className="meta-tag reps">{repsText}</span>
                         <span className="meta-tag muscle">{ex.muscle}</span>
@@ -123,6 +131,18 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
                         )}
                       </div>
                     </div>
+                    {isCurrentEx && repCount != null && (
+                      <div className="exercise-counter-group">
+                        <div className="counter-cell">
+                          <span className="counter-main">{repCount}</span>
+                          <span className="counter-sub">reps</span>
+                        </div>
+                        <div className="counter-cell">
+                          <span className="counter-main">{fmtRestShort(restSec)}</span>
+                          <span className="counter-sub">rest</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 {ei < block.exercises.length - 1 && (
@@ -135,9 +155,24 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
           })}
 
           {!isTabata && (
-            <div className="rest-card">
-              <span className="rest-label">Descanso entre series</span>
-              <span className="rest-time">{rest}</span>
+            <div className={`rest-card${isResting ? ' rest-card--active' : ''}`}>
+              {isResting ? (
+                <>
+                  <span className="rest-label">{restActiveLabel ?? 'DESCANSO'}</span>
+                  <span className="rest-time">{restDisplay}</span>
+                  {restActiveSub && <span className="rest-sub">{restActiveSub}</span>}
+                </>
+              ) : nextSetSecs != null ? (
+                <>
+                  <span className="rest-label">Próxima serie en</span>
+                  <span className="rest-time">{nextSetSecs}s</span>
+                </>
+              ) : (
+                <>
+                  <span className="rest-label">Descanso entre series</span>
+                  <span className="rest-time">{rest}</span>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -136,6 +136,23 @@ body {
 .day-title h1 { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 3px; line-height: 1.2; }
 .day-title .day-muscle { font-size: 0.7rem; color: var(--accent); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; }
 
+.start-session-btn {
+  display: block;
+  width: 100%;
+  padding: 18px 24px;
+  margin-bottom: 20px;
+  background: var(--accent);
+  color: #0a0a0a;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.3rem;
+  letter-spacing: 3px;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.start-session-btn:active { transform: scale(0.97); opacity: 0.85; }
+
 /* Accordion */
 .accordion { margin-bottom: 10px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); transition: border-color 0.3s; }
 .accordion.open { border-color: #2a2a2a; }
@@ -209,6 +226,23 @@ body {
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0; animation: rep-pop 0.2s ease;
 }
+.exercise-counter-group {
+  display: flex; gap: 6px; align-items: flex-end; flex-shrink: 0;
+}
+.counter-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.counter-main {
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 1px;
+  color: var(--accent); line-height: 1; animation: rep-pop 0.2s ease;
+}
+.counter-cell:last-child .counter-main {
+  color: var(--text-3); font-size: 1rem;
+}
+.counter-sub {
+  font-size: 0.5rem; font-weight: 600; text-transform: uppercase;
+  color: var(--text-3); letter-spacing: 0.5px;
+}
 .exercise-meta { display: flex; gap: 6px; flex-wrap: wrap; }
 .meta-tag { font-size: 0.6rem; font-weight: 600; padding: 2px 8px; border-radius: 50px; }
 .meta-tag.reps { background: var(--surface-3); color: var(--text-2); }
@@ -224,6 +258,13 @@ body {
 }
 .rest-card .rest-label { color: var(--text-3); font-size: 0.7rem; font-weight: 500; }
 .rest-card .rest-time { color: var(--accent); font-weight: 700; font-size: 0.8rem; }
+.rest-card--active {
+  flex-direction: column; align-items: center; gap: 2px;
+  background: rgba(212, 233, 0, 0.06); border: 1px solid rgba(212, 233, 0, 0.3);
+}
+.rest-card--active .rest-label { font-size: 0.62rem; letter-spacing: 0.08em; }
+.rest-card--active .rest-time { font-size: 1.6rem; }
+.rest-card .rest-sub { font-size: 0.62rem; color: var(--text-3); margin-top: 1px; text-align: center; }
 
 /* Progress bar */
 .blocks-progress { display: flex; gap: 4px; padding: 0 16px; margin-bottom: 16px; }
