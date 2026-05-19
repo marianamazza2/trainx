@@ -10,6 +10,7 @@ interface Props {
   activeExIdx: number
   completedExIdxs?: number[]
   repCount?: number | null
+  repLabel?: string
   week: Week
   mode: Mode
   onToggle: () => void
@@ -18,33 +19,27 @@ interface Props {
   restDisplay?: string
   restActiveLabel?: string
   restActiveSub?: string
-  nextSetSecs?: number | null
+  isSwitching?: boolean
+  switchRemaining?: number | null
 }
 
-export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, completedExIdxs = [], repCount, week, mode, onToggle, onVideoOpen, isResting, restDisplay, restActiveLabel, restActiveSub, nextSetSecs }: Props) {
+export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, completedExIdxs = [], repCount, repLabel, week, mode, onToggle, onVideoOpen, isResting, restDisplay, restActiveLabel, restActiveSub, isSwitching, switchRemaining }: Props) {
   const exerciseRefs = useRef<(HTMLDivElement | null)[]>([])
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isTabata = block.type === 'tabata' || block.type === 'hiit'
 
   useEffect(() => {
+    if (isTabata && activeExIdx === 0) return
     if (activeExIdx >= 0 && exerciseRefs.current[activeExIdx]) {
       clearTimeout(scrollTimerRef.current!)
       scrollTimerRef.current = setTimeout(() => {
         exerciseRefs.current[activeExIdx]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }, 350)
     }
-  }, [activeExIdx])
+  }, [activeExIdx, isTabata])
 
-  const isTabata = block.type === 'tabata' || block.type === 'hiit'
   const num = String(index + 1).padStart(2, '0')
   const rest = mode === 'casa' ? week.restCasa : week.restGym
-  const restSec = mode === 'casa' ? week.restSecCasa : week.restSecGym
-
-  function fmtRestShort(sec: number): string {
-    if (sec < 60) return `${sec}"`
-    const m = Math.floor(sec / 60)
-    const s = sec % 60
-    return s === 0 ? `${m}'` : `${m}'${s}"`
-  }
 
   const subtitle = blockState.completed
     ? 'Completado ✓'
@@ -109,11 +104,13 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
               ? `${week.reps} reps ${ex.repsLabel}`
               : `${week.reps} reps`
 
+            const isNextEx = isActive && !isDoneInSeries && !isCurrentEx && activeExIdx >= 0 && ei > activeExIdx
+
             return (
               <div key={ei}>
                 <div
                   ref={el => { exerciseRefs.current[ei] = el }}
-                  className={`exercise${hasVideo ? '' : ' no-video'}${isCurrentEx ? ' exercise-active' : isDoneInSeries ? ' exercise-series-done' : ''}`}
+                  className={`exercise${hasVideo ? '' : ' no-video'}${isCurrentEx ? ' exercise-active' : isDoneInSeries ? ' exercise-series-done' : isNextEx ? ' exercise-next' : ''}`}
                   onClick={hasVideo ? () => onVideoOpen(ex.video!) : undefined}
                 >
                   <div className="exercise-inner">
@@ -131,24 +128,37 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
                         )}
                       </div>
                     </div>
-                    {isCurrentEx && repCount != null && (
+                    {isCurrentEx && (repCount != null || (isSwitching && switchRemaining != null)) && (
                       <div className="exercise-counter-group">
-                        <div className="counter-cell">
-                          <span className="counter-main">{repCount}</span>
-                          <span className="counter-sub">reps</span>
-                        </div>
-                        <div className="counter-cell">
-                          <span className="counter-main">{fmtRestShort(restSec)}</span>
-                          <span className="counter-sub">rest</span>
-                        </div>
+                        {repCount != null && (
+                          <div className="counter-cell counter-cell--reps">
+                            <span className="counter-main">{repCount}</span>
+                            <span className="counter-sub">{repLabel ?? 'reps'}</span>
+                          </div>
+                        )}
+                        {isSwitching && switchRemaining != null && (
+                          <div className="counter-cell counter-cell--active">
+                            <span className="counter-main">{switchRemaining}</span>
+                            <span className="counter-sub">rest</span>
+                          </div>
+                        )}
                       </div>
+                    )}
+                    {isDoneInSeries && !isCurrentEx && (
+                      <span className="exercise-done-check">✓</span>
                     )}
                   </div>
                 </div>
                 {ei < block.exercises.length - 1 && (
-                  <div className="connector">
-                    <div className="connector-line" />
-                  </div>
+                  isSwitching && activeExIdx === ei && !isTabata ? (
+                    <div className="transition-row">
+                      <span className="transition-icon">↓</span>
+                      <span className="transition-text">Siguiente en</span>
+                      <span className="transition-time">{switchRemaining}s</span>
+                    </div>
+                  ) : (
+                    <div className="connector"><div className="connector-line" /></div>
+                  )
                 )}
               </div>
             )
@@ -158,14 +168,9 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
             <div className={`rest-card${isResting ? ' rest-card--active' : ''}`}>
               {isResting ? (
                 <>
-                  <span className="rest-label">{restActiveLabel ?? 'DESCANSO'}</span>
+                  <span className="rest-label">{restActiveLabel ?? 'DESCANSO ENTRE SERIES'}</span>
                   <span className="rest-time">{restDisplay}</span>
                   {restActiveSub && <span className="rest-sub">{restActiveSub}</span>}
-                </>
-              ) : nextSetSecs != null ? (
-                <>
-                  <span className="rest-label">Próxima serie en</span>
-                  <span className="rest-time">{nextSetSecs}s</span>
                 </>
               ) : (
                 <>

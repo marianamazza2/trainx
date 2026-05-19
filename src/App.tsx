@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import type { Mode, BlockState, BBState, TabataState, CircuitState } from './types/workout'
 import { WEEKS, CASA_DAYS, GYM_DAYS, TREADMILL } from './data/workout'
 import AccordionBlock from './components/AccordionBlock'
-import TabataOverlay from './components/TabataOverlay'
 
 // ── Utils ────────────────────────────────────────────────────────────────────
 function fmt(s: number) {
@@ -30,6 +29,8 @@ function todayDayIndex() {
 const SESSION_KEY = 'trainx_session'
 const MODE_KEY = 'trainx_mode'
 const WEEK_KEY = 'trainx_week'
+const WORKOUT_PREP_SECS = 10
+const EXERCISE_SWITCH_REST_SECS = 5
 
 interface SavedSession {
   date: string; mode: Mode; dayIdx: number; completedBlocks: boolean[]
@@ -83,13 +84,15 @@ export default function App() {
   const [globalTimerSecs, setGlobalTimerSecs] = useState(0)
   const [globalTimerRunning, setGlobalTimerRunning] = useState(false)
   const [globalTimerPaused, setGlobalTimerPaused] = useState(false)
-  const [autoPlaySecs, setAutoPlaySecs] = useState<number | null>(null)
   const [repCount, setRepCount] = useState<number | null>(null)
   const [tabataState, setTabataState] = useState<TabataState | null>(null)
   const [, setCircuitState] = useState<CircuitState | null>(null)
   const [sessionComplete, setSessionComplete] = useState(false)
   const [sessionStarted, setSessionStarted] = useState(false)
   const [completedExIdxs, setCompletedExIdxs] = useState<number[]>([])
+  const [topBarHeight, setTopBarHeight] = useState(0)
+
+  const topBarRef = useRef<HTMLDivElement>(null)
 
   // Refs so interval callbacks always read current values
   const blockStatesRef = useRef<BlockState[]>([])
@@ -102,6 +105,7 @@ export default function App() {
   const globalTimerSecsRef = useRef(0)
   const globalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const globalTimerRunningRef = useRef(false)
+  const globalTimerPausedRef = useRef(false)
   const currentExIdxRef = useRef(0)
   const restIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const tabataIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -110,10 +114,9 @@ export default function App() {
   const circuitRestIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const circuitPrepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const circuitStateRef = useRef<CircuitState | null>(null)
-  const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const autoPlaySecsRef = useRef<number | null>(null)
   const repIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const sessionStartedRef = useRef(false)
+  const topBarHeightRef = useRef(0)
 
   // Sync refs on every render
   blockStatesRef.current = blockStates
@@ -123,6 +126,7 @@ export default function App() {
   modeRef.current = mode
   dayRef.current = day
   globalTimerRunningRef.current = globalTimerRunning
+  globalTimerPausedRef.current = globalTimerPaused
   sessionStartedRef.current = sessionStarted
 
   // ── Init day content ──────────────────────────────────────────────────────
@@ -149,6 +153,18 @@ export default function App() {
   useEffect(() => { if (mode) localStorage.setItem(MODE_KEY, mode) }, [mode])
   useEffect(() => { localStorage.setItem(WEEK_KEY, String(week)) }, [week])
 
+  useEffect(() => {
+    const el = topBarRef.current
+    if (!el) return
+    const ro = new ResizeObserver(entries => {
+      const height = entries[0].contentRect.height
+      topBarHeightRef.current = height
+      setTopBarHeight(height)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   // ── Global timer ──────────────────────────────────────────────────────────
   function startGlobalTimer() {
     if (globalTimerRef.current) return
@@ -156,6 +172,8 @@ export default function App() {
     setGlobalTimerSecs(0)
     setGlobalTimerRunning(true)
     setGlobalTimerPaused(false)
+    globalTimerPausedRef.current = false
+    restPausedRef.current = false
     globalTimerRef.current = setInterval(() => {
       globalTimerSecsRef.current++
       setGlobalTimerSecs(globalTimerSecsRef.current)
@@ -167,50 +185,59 @@ export default function App() {
     globalTimerRef.current = null
     setGlobalTimerRunning(false)
     setGlobalTimerPaused(false)
+    globalTimerPausedRef.current = false
+    restPausedRef.current = false
   }
 
   function toggleGlobalTimer() {
-    if (!globalTimerRunning) return
-    if (globalTimerRef.current) {
+    if (!globalTimerRunningRef.current) return
+    if (!globalTimerPausedRef.current) {
       clearInterval(globalTimerRef.current!)
       globalTimerRef.current = null
       setGlobalTimerPaused(true)
+      globalTimerPausedRef.current = true
       restPausedRef.current = true
     } else {
       setGlobalTimerPaused(false)
+      globalTimerPausedRef.current = false
       restPausedRef.current = false
-      globalTimerRef.current = setInterval(() => {
-        globalTimerSecsRef.current++
-        setGlobalTimerSecs(globalTimerSecsRef.current)
-      }, 1000)
+      if (!globalTimerRef.current) {
+        globalTimerRef.current = setInterval(() => {
+          globalTimerSecsRef.current++
+          setGlobalTimerSecs(globalTimerSecsRef.current)
+        }, 1000)
+      }
     }
   }
 
-  // ── Auto-play (next state) ─────────────────────────────────────────────────
-  function startAutoPlay(bi: number) {
-    clearInterval(autoPlayRef.current!)
-    autoPlaySecsRef.current = 8
-    setAutoPlaySecs(8)
-    autoPlayRef.current = setInterval(() => {
+  function startWorkoutPrep(bi: number) {
+    if (bbStateRef.current === 'switching') return
+    beepRest(); vibrate(150)
+    setBbTimerLabel('PREPÁRATE')
+    setShowRestTimer(true)
+    setRestRemaining(WORKOUT_PREP_SECS)
+    setRestSub('La sesión está por comenzar')
+    setBbState('switching')
+    bbStateRef.current = 'switching'
+
+    let remaining = WORKOUT_PREP_SECS
+    clearInterval(restIntervalRef.current!)
+    restIntervalRef.current = setInterval(() => {
       if (restPausedRef.current) return
-      const next = (autoPlaySecsRef.current ?? 1) - 1
-      autoPlaySecsRef.current = next
-      setAutoPlaySecs(next)
-      if (next <= 0) {
-        clearInterval(autoPlayRef.current!)
-        autoPlayRef.current = null
-        autoPlaySecsRef.current = null
-        setAutoPlaySecs(null)
-        enterTrainingState(bi, blockStatesRef.current[bi])
+      remaining--
+      setRestRemaining(remaining)
+      if (remaining <= 3 && remaining > 0) beep(600, 80)
+      if (remaining <= 0) {
+        clearInterval(restIntervalRef.current!)
+        setShowRestTimer(false)
+        if (!sessionStartedRef.current) {
+          sessionStartedRef.current = true
+          setSessionStarted(true)
+          startGlobalTimer()
+        }
+        autoStartBlock(bi)
       }
     }, 1000)
-  }
-
-  function cancelAutoPlay() {
-    clearInterval(autoPlayRef.current!)
-    autoPlayRef.current = null
-    autoPlaySecsRef.current = null
-    setAutoPlaySecs(null)
   }
 
   // ── Rep counter ────────────────────────────────────────────────────────────
@@ -224,12 +251,11 @@ export default function App() {
       if (count > totalReps) {
         clearInterval(repIntervalRef.current!)
         repIntervalRef.current = null
-        setRepCount(null)
         onComplete?.()
       } else {
         setRepCount(count)
       }
-    }, 1500)
+    }, 3000)
   }
 
   function stopRepCounter() {
@@ -259,7 +285,6 @@ export default function App() {
 
   function goBack() {
     stopGlobalTimer()
-    cancelAutoPlay()
     stopRepCounter()
     stopCircuit()
     clearInterval(restIntervalRef.current!)
@@ -272,7 +297,6 @@ export default function App() {
 
   function selectDay(i: number) {
     stopGlobalTimer()
-    cancelAutoPlay()
     stopRepCounter()
     stopCircuit()
     clearInterval(restIntervalRef.current!)
@@ -292,12 +316,10 @@ export default function App() {
     activeBlockIdxRef.current = bi
     setShowRestTimer(false)
     clearInterval(restIntervalRef.current!)
-    cancelAutoPlay()
     setCompletedExIdxs([])
+    setBbState('idle')
+    bbStateRef.current = 'idle'
     setOpenBlocks(prev => { const next = new Set(prev); next.add(bi); return next })
-    if (sessionStartedRef.current) {
-      setTimeout(() => autoStartBlock(bi), 600)
-    }
   }
 
   function autoStartBlock(bi: number) {
@@ -323,11 +345,20 @@ export default function App() {
   }
 
   function handleAccordionToggle(bi: number) {
+    const isPreviewingAnotherBlock =
+      sessionStartedRef.current &&
+      activeBlockIdxRef.current >= 0 &&
+      bi !== activeBlockIdxRef.current &&
+      bbStateRef.current !== 'idle'
+
     setOpenBlocks(prev => {
       const next = new Set(prev)
       if (next.has(bi)) next.delete(bi); else next.add(bi)
       return next
     })
+
+    if (isPreviewingAnotherBlock) return
+
     const bs = blockStatesRef.current[bi]
     if (bs && !bs.completed) {
       activateBlock(bi)
@@ -371,14 +402,20 @@ export default function App() {
     const restSec = modeRef.current === 'casa' ? w.restSecCasa : w.restSecGym
     const bs = blockStatesRef.current[bi]
     const isLast = forceComplete || bs.currentSet === bs.totalSets
+    let nextBlockTitle: string | null = null
 
     if (isLast) {
       const sessionDone = markBlockDone(bi)
       if (sessionDone) return
+      const nextBi = blockStatesRef.current.findIndex((b, i) => i > bi && !b.completed)
+      if (nextBi >= 0) {
+        const days = modeRef.current === 'casa' ? CASA_DAYS : GYM_DAYS
+        nextBlockTitle = days[dayRef.current].blocks[nextBi]?.title ?? null
+      }
     }
 
     beepRest(); vibrate(200)
-    setBbTimerLabel('DESCANSO')
+    setBbTimerLabel('DESCANSO ENTRE SERIES')
     setCurrentExIdx(0); currentExIdxRef.current = 0
     setCompletedExIdxs([])
     setShowRestTimer(true)
@@ -394,6 +431,9 @@ export default function App() {
       if (restPausedRef.current) return
       remaining--
       setRestRemaining(remaining)
+      if (isLast && nextBlockTitle && remaining <= 10 && remaining > 0) {
+        setRestSub(`Prepárate para: ${nextBlockTitle}`)
+      }
       if (remaining <= 3 && remaining > 0) beep(600, 100)
       if (remaining <= 0) {
         clearInterval(restIntervalRef.current!)
@@ -407,9 +447,9 @@ export default function App() {
           current[bi] = { ...current[bi], currentSet: current[bi].currentSet + 1 }
           setBlockStates(current)
           blockStatesRef.current = current
-          setBbState('next')
-          bbStateRef.current = 'next'
-          startAutoPlay(bi)
+          setCurrentExIdx(0); currentExIdxRef.current = 0
+          setCompletedExIdxs([])
+          enterTrainingState(bi, current[bi])
         }
       }
     }, 1000)
@@ -422,14 +462,14 @@ export default function App() {
     const nextEx = block.exercises[nextExIdx]
 
     beepRest(); vibrate(150)
-    setBbTimerLabel('CAMBIO')
-    setShowRestTimer(true)
-    setRestRemaining(5)
+    setBbTimerLabel('DESCANSO')
+    setShowRestTimer(false)
+    setRestRemaining(EXERCISE_SWITCH_REST_SECS)
     setRestSub(`→ ${nextEx.name}`)
     setBbState('switching')
     bbStateRef.current = 'switching'
 
-    let remaining = 5
+    let remaining = EXERCISE_SWITCH_REST_SECS
     clearInterval(restIntervalRef.current!)
     restIntervalRef.current = setInterval(() => {
       if (restPausedRef.current) return
@@ -479,8 +519,15 @@ export default function App() {
           next.delete(bi); next.add(nextBi)
           return next
         })
-        document.getElementById(`acc-${nextBi}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         activateBlock(nextBi)
+        setTimeout(() => {
+          const el = document.getElementById(`acc-${nextBi}`)
+          if (el) {
+            const top = el.getBoundingClientRect().top + window.scrollY - topBarHeightRef.current - 16
+            window.scrollTo({ top, behavior: 'smooth' })
+          }
+          autoStartBlock(nextBi)
+        }, 100)
       }, 400)
     }
   }
@@ -494,7 +541,7 @@ export default function App() {
     setOpenBlocks(prev => { const next = new Set(prev); next.add(bi); return next })
 
     const bs = [...blockStatesRef.current]
-    bs[bi] = { ...bs[bi], started: true }
+    bs[bi] = { ...bs[bi], started: true, currentSet: 1 }
     setBlockStates(bs)
     blockStatesRef.current = bs
 
@@ -506,31 +553,12 @@ export default function App() {
     }
     circuitStateRef.current = cs
     setCircuitState({ ...cs })
-    setBbState('circuit-prep')
-    bbStateRef.current = 'circuit-prep'
-
-    const PREP_SECS = 10
-    setShowRestTimer(true)
-    setBbTimerLabel('Iniciando circuito en:')
-    setRestRemaining(PREP_SECS)
+    setBbState('circuit')
+    bbStateRef.current = 'circuit'
+    setShowRestTimer(false)
+    setBbTimerLabel('CIRCUITO')
     setRestSub('')
-
-    let remaining = PREP_SECS
-    clearInterval(circuitPrepIntervalRef.current!)
-    circuitPrepIntervalRef.current = setInterval(() => {
-      if (restPausedRef.current) return
-      remaining--
-      setRestRemaining(remaining)
-      if (remaining <= 3 && remaining > 0) beep(600, 100)
-      if (remaining <= 0) {
-        clearInterval(circuitPrepIntervalRef.current!)
-        circuitPrepIntervalRef.current = null
-        setShowRestTimer(false)
-        setBbState('circuit')
-        bbStateRef.current = 'circuit'
-        enterCircuitWork(circuitStateRef.current!)
-      }
-    }, 1000)
+    enterCircuitWork(cs)
   }
 
   function enterCircuitWork(cs: CircuitState) {
@@ -539,6 +567,10 @@ export default function App() {
     const block = days[dayRef.current].blocks[cs.bi]
     const workSec = block.workSec ?? 40
 
+    currentExIdxRef.current = cs.currentExIdx
+    setCurrentExIdx(cs.currentExIdx)
+    setBbState('circuit')
+    bbStateRef.current = 'circuit'
     setShowRestTimer(false)
     setRepCount(workSec)
 
@@ -573,12 +605,14 @@ export default function App() {
 
     beepRest(); vibrate(150)
     const nextEx = cs.exercises[nextExIdx]
+    setBbState('switching')
+    bbStateRef.current = 'switching'
     setShowRestTimer(true)
-    setRestRemaining(5)
-    setBbTimerLabel('PREPARATE')
+    setRestRemaining(EXERCISE_SWITCH_REST_SECS)
+    setBbTimerLabel('DESCANSO')
     setRestSub(`→ ${nextEx?.name ?? '—'}`)
 
-    let remaining = 5
+    let remaining = EXERCISE_SWITCH_REST_SECS
     clearInterval(circuitRestIntervalRef.current!)
     circuitRestIntervalRef.current = setInterval(() => {
       if (restPausedRef.current) return
@@ -604,7 +638,7 @@ export default function App() {
     const block = days[dayRef.current].blocks[bi]
 
     const bs = [...blockStatesRef.current]
-    bs[bi] = { ...bs[bi], started: true }
+    bs[bi] = { ...bs[bi], started: true, currentSet: 1 }
     setBlockStates(bs)
     blockStatesRef.current = bs
 
@@ -620,6 +654,7 @@ export default function App() {
 
     clearInterval(tabataIntervalRef.current!)
     tabataIntervalRef.current = setInterval(() => {
+      if (restPausedRef.current) return
       const s = tabataStateRef.current!
       s.remaining--
       if (s.remaining <= 3 && s.remaining > 0) beep(600, 80)
@@ -653,12 +688,10 @@ export default function App() {
     }, 1000)
   }
 
-  function closeTabata() {
-    clearInterval(tabataIntervalRef.current!)
-    tabataStateRef.current = null
-    setTabataState(null)
-    setBbState('idle')
-    bbStateRef.current = 'idle'
+  function handleStartBlock() {
+    const bi = activeBlockIdxRef.current
+    if (bi < 0) return
+    startWorkoutPrep(bi)
   }
 
   // ── Derived values for render ─────────────────────────────────────────────
@@ -666,10 +699,6 @@ export default function App() {
   const currentDay = days[day]
   const currentWeekData = WEEKS[week]
   const rest = mode === 'casa' ? currentWeekData.restCasa : currentWeekData.restGym
-
-  const showStartBtn = !sessionStarted && !sessionComplete &&
-    !currentDay.isCasaCardio && !currentDay.isGymCardio &&
-    blockStates.some(b => !b.completed)
 
   // ── Mode Select Screen ────────────────────────────────────────────────────
   if (!mode) {
@@ -699,34 +728,12 @@ export default function App() {
   return (
     <>
       <div className="training-screen">
-        <div className="top-bar">
+        <div className="top-bar" ref={topBarRef}>
           <div className="top-bar-header">
             <button className="back-btn" onClick={goBack}>← Cambiar</button>
             <div className="top-title">M<span>·</span>NK MODE</div>
             <span className="mode-label">{mode === 'casa' ? 'CASA' : 'GYM'}</span>
           </div>
-
-          <div
-            className={`global-timer${globalTimerRunning ? ' active' : ''}${globalTimerPaused ? ' paused' : ''}`}
-            onClick={toggleGlobalTimer}
-          >
-            <div className="global-timer-dot" />
-            <span className="global-timer-label">Sesión</span>
-            <span className="global-timer-time">{fmt(globalTimerSecs)}</span>
-            {globalTimerRunning && <span className="global-timer-pause-icon">{globalTimerPaused ? '▶' : '⏸'}</span>}
-          </div>
-
-          {sessionStarted && showRestTimer && (
-            <div className="top-action-bar">
-              <div className="top-action-timer">
-                <span className="top-action-timer-label">{bbTimerLabel}</span>
-                <span className="top-action-timer-time">
-                  {bbState === 'circuit' || bbState === 'circuit-prep' ? String(restRemaining) : fmt(restRemaining)}
-                </span>
-                {restSub && <span className="top-action-timer-sub">{restSub}</span>}
-              </div>
-            </div>
-          )}
 
           <div className="week-selector">
             {WEEKS.map((w, i) => (
@@ -754,25 +761,28 @@ export default function App() {
         </div>
 
         <div className="day-content" key={`${mode}-${day}-${week}`}>
-          <div className="day-title">
-            <h1>{currentDay.name.toUpperCase()}</h1>
-            <div className="day-muscle">{currentDay.muscle}</div>
-          </div>
+          <div
+            className={`day-header-sticky${sessionStarted && !sessionComplete ? ' is-sticky' : ''}`}
+            style={sessionStarted && !sessionComplete ? { top: topBarHeight } : undefined}
+          >
+            <div className="day-title">
+              <h1>{currentDay.name.toUpperCase()}</h1>
+              <div className="day-muscle">{currentDay.muscle}</div>
+            </div>
 
-          {showStartBtn && (
-            <button
-              className="start-session-btn"
-              onClick={() => {
-                sessionStartedRef.current = true
-                setSessionStarted(true)
-                startGlobalTimer()
-                const bi = activeBlockIdxRef.current
-                if (bi >= 0) setTimeout(() => autoStartBlock(bi), 300)
-              }}
-            >
-              ▶ COMENZAR SESIÓN
-            </button>
-          )}
+            {sessionStarted && !sessionComplete && !currentDay.isCasaCardio && !currentDay.isGymCardio && (
+              <div className="session-status-inline" onClick={toggleGlobalTimer}>
+                <div className="session-status-row">
+                  <div className={`global-timer-dot${globalTimerPaused ? ' paused' : ''}`} />
+                  <span className="session-status-label">SESIÓN</span>
+                  <span className={`session-status-time${globalTimerPaused ? ' paused' : ''}`}>{fmt(globalTimerSecs)}</span>
+                  {globalTimerRunning && (
+                    <span className={`session-status-pause${globalTimerPaused ? ' paused' : ''}`}>{globalTimerPaused ? '▶' : '⏸'}</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {currentDay.isCasaCardio && (
             <div className="cardio-note">
@@ -784,6 +794,20 @@ export default function App() {
             </div>
           )}
 
+          {!sessionStarted && !currentDay.isCasaCardio && !currentDay.isGymCardio && activeBlockIdx >= 0 && (
+            <button
+              className="start-session-btn"
+              onClick={handleStartBlock}
+              disabled={bbState === 'switching'}
+            >
+              {bbState === 'switching' ? (
+                <>PREPÁRATE {String(restRemaining).padStart(2, '0')}</>
+              ) : (
+                <>▶ COMENZAR SESIÓN</>
+              )}
+            </button>
+          )}
+
           {!currentDay.isCasaCardio && blockStates.length > 0 && (
             <div className="blocks-progress">
               {blockStates.map((bs, i) => (
@@ -792,28 +816,52 @@ export default function App() {
             </div>
           )}
 
-          {currentDay.blocks.map((block, bi) => (
-            <AccordionBlock
-              key={`${mode}-${day}-${week}-${bi}`}
-              index={bi}
-              block={block}
-              blockState={blockStates[bi] ?? { currentSet: 0, totalSets: 0, started: false, completed: false }}
-              isOpen={openBlocks.has(bi)}
-              isActive={activeBlockIdx === bi}
-              activeExIdx={activeBlockIdx === bi && bbState === 'training' ? currentExIdx : -1}
-              completedExIdxs={activeBlockIdx === bi ? completedExIdxs : []}
-              repCount={activeBlockIdx === bi && bbState === 'training' ? repCount : null}
-              week={currentWeekData}
-              mode={mode}
-              onToggle={() => handleAccordionToggle(bi)}
-              onVideoOpen={(url) => window.open(url, '_blank')}
-              isResting={activeBlockIdx === bi && showRestTimer}
-              restDisplay={fmt(restRemaining)}
-              restActiveLabel={activeBlockIdx === bi ? bbTimerLabel : undefined}
-              restActiveSub={activeBlockIdx === bi ? restSub : undefined}
-              nextSetSecs={activeBlockIdx === bi && bbState === 'next' ? autoPlaySecs : null}
-            />
-          ))}
+          {currentDay.blocks.map((block, bi) => {
+            const isTabataBlock = block.type === 'tabata' || block.type === 'hiit'
+            const ts = tabataState?.bi === bi ? tabataState : null
+            const isExerciseSwitch = bbState === 'switching' && bbTimerLabel === 'DESCANSO'
+
+            const exActiveIdx = ts
+              ? ts.currentExIdx
+              : (activeBlockIdx === bi && (bbState === 'training' || bbState === 'circuit' || isExerciseSwitch) ? currentExIdx : -1)
+
+            const exRepCount = ts
+              ? (ts.phase === 'work' ? ts.remaining : null)
+              : (activeBlockIdx === bi && (bbState === 'training' || bbState === 'circuit' || isExerciseSwitch) ? repCount : null)
+
+            const exIsSwitching = ts
+              ? ts.phase === 'rest'
+              : (activeBlockIdx === bi && isExerciseSwitch)
+
+            const exSwitchRemaining = ts
+              ? (ts.phase === 'rest' ? ts.remaining : null)
+              : (activeBlockIdx === bi && isExerciseSwitch ? restRemaining : null)
+
+            return (
+              <AccordionBlock
+                key={`${mode}-${day}-${week}-${bi}`}
+                index={bi}
+                block={block}
+                blockState={blockStates[bi] ?? { currentSet: 0, totalSets: 0, started: false, completed: false }}
+                isOpen={openBlocks.has(bi)}
+                isActive={activeBlockIdx === bi}
+                activeExIdx={exActiveIdx}
+                completedExIdxs={activeBlockIdx === bi ? completedExIdxs : []}
+                repCount={exRepCount}
+                repLabel={isTabataBlock ? 'work' : undefined}
+                isSwitching={exIsSwitching}
+                switchRemaining={exSwitchRemaining}
+                week={currentWeekData}
+                mode={mode}
+                onToggle={() => handleAccordionToggle(bi)}
+                onVideoOpen={(url) => window.open(url, '_blank')}
+                isResting={activeBlockIdx === bi && showRestTimer}
+                restDisplay={fmt(restRemaining)}
+                restActiveLabel={activeBlockIdx === bi ? bbTimerLabel : undefined}
+                restActiveSub={activeBlockIdx === bi ? restSub : undefined}
+              />
+            )
+          })}
 
           {currentDay.isGymCardio && (
             <div className="cardio-note" style={{ marginTop: 4, flexDirection: 'column' }}>
@@ -857,7 +905,6 @@ export default function App() {
         </div>
       </div>
 
-      <TabataOverlay tabataState={tabataState} onClose={closeTabata} />
     </>
   )
 }
