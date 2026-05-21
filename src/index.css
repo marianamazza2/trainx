@@ -29,6 +29,49 @@ body {
 
 #root { max-width: 500px; margin: 0 auto; }
 
+/* Pin Gate */
+.pin-screen {
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  padding: 40px 24px; gap: 0;
+}
+.pin-dots {
+  display: flex; gap: 16px; margin: 40px 0 12px;
+  transition: transform 0.1s;
+}
+.pin-dots.shake {
+  animation: pin-shake 0.5s ease;
+}
+@keyframes pin-shake {
+  0%,100% { transform: translateX(0) }
+  20% { transform: translateX(-8px) }
+  40% { transform: translateX(8px) }
+  60% { transform: translateX(-6px) }
+  80% { transform: translateX(6px) }
+}
+.pin-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--text-3);
+  transition: background 0.15s, border-color 0.15s;
+}
+.pin-dot.filled { background: var(--accent); border-color: var(--accent); }
+.pin-dot.error { background: var(--red); border-color: var(--red); }
+.pin-label { font-size: 0.75rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text-3); margin-bottom: 32px; }
+.pin-error { font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; color: var(--red); margin-bottom: 32px; }
+.pin-pad {
+  display: grid; grid-template-columns: repeat(3, 72px); gap: 12px;
+}
+.pin-btn {
+  height: 72px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text);
+  font-size: 1.5rem; font-family: 'DM Sans', sans-serif; font-weight: 500;
+  cursor: pointer; transition: background 0.12s, transform 0.08s;
+  display: flex; align-items: center; justify-content: center;
+}
+.pin-btn:active { background: var(--surface-3); transform: scale(0.93); }
+.pin-btn-empty { background: transparent; border-color: transparent; cursor: default; }
+.pin-btn-del { font-size: 1.2rem; color: var(--text-2); }
+
 /* Mode Screen */
 .mode-screen {
   min-height: 100vh;

@@ -255,7 +255,7 @@ export default function App() {
       } else {
         setRepCount(count)
       }
-    }, 3000)
+    }, 2000)
   }
 
   function stopRepCounter() {
@@ -520,13 +520,14 @@ export default function App() {
           return next
         })
         activateBlock(nextBi)
+        autoStartBlock(nextBi)
+        // scroll after DOM updates from activateBlock
         setTimeout(() => {
           const el = document.getElementById(`acc-${nextBi}`)
           if (el) {
             const top = el.getBoundingClientRect().top + window.scrollY - topBarHeightRef.current - 16
             window.scrollTo({ top, behavior: 'smooth' })
           }
-          autoStartBlock(nextBi)
         }, 100)
       }, 400)
     }
