@@ -71,4 +71,5 @@ export interface TabataState {
   currentExIdx: number
   phase: 'work' | 'rest'
   remaining: number
+  isRoundRest?: boolean
 }

@@ -359,6 +359,8 @@ export default function App() {
   }
 
   function handleAccordionToggle(bi: number) {
+    const isCurrentlyOpen = openBlocks.has(bi)
+
     const isPreviewingAnotherBlock =
       sessionStartedRef.current &&
       activeBlockIdxRef.current >= 0 &&
@@ -374,7 +376,7 @@ export default function App() {
     if (isPreviewingAnotherBlock) return
 
     const bs = blockStatesRef.current[bi]
-    if (bs && !bs.completed) {
+    if (bs && !bs.completed && !isCurrentlyOpen) {
       activateBlock(bi)
     }
   }
@@ -689,6 +691,7 @@ export default function App() {
             return
           }
           s.phase = 'rest'; s.remaining = s.restSec
+          s.isRoundRest = isLastEx
           beepRest(); vibrate(200)
         } else {
           s.currentExIdx++
@@ -696,6 +699,7 @@ export default function App() {
             s.currentExIdx = 0; s.currentRound++
           }
           s.phase = 'work'; s.remaining = s.workSec
+          s.isRoundRest = false
           beepWork(); vibrate(100)
         }
       }
@@ -822,6 +826,16 @@ export default function App() {
               ? (ts.phase === 'rest' ? ts.remaining : null)
               : (activeBlockIdx === bi && isExerciseSwitch ? restRemaining : null)
 
+            const tabataRoundRest = isTabataBlock && ts?.phase === 'rest' && ts?.isRoundRest
+            const effectiveIsResting = (activeBlockIdx === bi && showRestTimer) || !!tabataRoundRest
+            const effectiveRestDisplay = tabataRoundRest && ts ? fmt(ts.remaining) : fmt(restRemaining)
+            const effectiveRestLabel = tabataRoundRest
+              ? 'DESCANSO ENTRE RONDAS'
+              : (activeBlockIdx === bi ? bbTimerLabel : undefined)
+            const effectiveRestSub = tabataRoundRest && ts
+              ? `Ronda ${ts.currentRound} de ${ts.totalRounds} completada`
+              : (activeBlockIdx === bi ? restSub : undefined)
+
             return (
               <AccordionBlock
                 key={`${mode}-${day}-${week}-${bi}`}
@@ -840,10 +854,10 @@ export default function App() {
                 mode={mode}
                 onToggle={() => handleAccordionToggle(bi)}
                 onVideoOpen={(url) => window.open(url, '_blank')}
-                isResting={activeBlockIdx === bi && showRestTimer}
-                restDisplay={fmt(restRemaining)}
-                restActiveLabel={activeBlockIdx === bi ? bbTimerLabel : undefined}
-                restActiveSub={activeBlockIdx === bi ? restSub : undefined}
+                isResting={effectiveIsResting}
+                restDisplay={effectiveRestDisplay}
+                restActiveLabel={effectiveRestLabel}
+                restActiveSub={effectiveRestSub}
               />
             )
           })}

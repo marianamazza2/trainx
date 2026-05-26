@@ -156,7 +156,7 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
             )
           })}
 
-          {!isTabata && (
+          {(!isTabata || isResting) && (
             <div className={`rest-card${isResting ? ' rest-card--active' : ''}`}>
               {isResting ? (
                 <>
