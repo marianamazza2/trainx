@@ -91,6 +91,8 @@ export default function App() {
   const [sessionStarted, setSessionStarted] = useState(false)
   const [completedExIdxs, setCompletedExIdxs] = useState<number[]>([])
   const [topBarHeight, setTopBarHeight] = useState(0)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [weekTemp, setWeekTemp] = useState(week)
 
   const topBarRef = useRef<HTMLDivElement>(null)
 
@@ -255,7 +257,7 @@ export default function App() {
       } else {
         setRepCount(count)
       }
-    }, 2000)
+    }, 1500)
   }
 
   function stopRepCounter() {
@@ -265,6 +267,18 @@ export default function App() {
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
+  function openSettings() {
+    setWeekTemp(week)
+    setSettingsOpen(true)
+  }
+  function closeSettings() {
+    setSettingsOpen(false)
+  }
+  function saveSettings() {
+    setWeek(weekTemp)
+    setSettingsOpen(false)
+  }
+
   function selectMode(m: Mode) {
     stopGlobalTimer()
     clearInterval(restIntervalRef.current!)
@@ -731,25 +745,30 @@ export default function App() {
       <div className="training-screen">
         <div className="top-bar" ref={topBarRef}>
           <div className="top-bar-header">
-            <button className="back-btn" onClick={goBack}>← Cambiar</button>
-            <div className="top-title">M<span>·</span>NK MODE</div>
-            <span className="mode-label">{mode === 'casa' ? 'CASA' : 'GYM'}</span>
-          </div>
-
-          <div className="week-selector">
-            {WEEKS.map((w, i) => (
-              <button key={i} className={`week-btn${i === week ? ' active' : ''}`} onClick={() => setWeek(i)}>
-                <div className="week-num">S{w.num}</div>
-                <div className="week-label">{w.label}</div>
+            <button className="back-btn" onClick={goBack}>←</button>
+            <div className="top-title-group">
+              <div className="top-title">M<span>·</span>NK MODE</div>
+              <div className="top-subtitle">{currentDay.muscle.toUpperCase()}</div>
+            </div>
+            <div className="top-right-controls">
+              <div
+                className={`timer-pill${globalTimerPaused ? ' paused' : ''}${sessionStarted ? ' active' : ''}`}
+                onClick={sessionStarted ? toggleGlobalTimer : undefined}
+              >
+                <span className="timer-pill-icon">⏱</span>
+                <span className="timer-pill-time">{fmt(globalTimerSecs)}</span>
+              </div>
+              <button className="settings-btn" onClick={openSettings}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <line x1="4" y1="6" x2="20" y2="6"/>
+                  <line x1="4" y1="12" x2="20" y2="12"/>
+                  <line x1="4" y1="18" x2="20" y2="18"/>
+                  <circle cx="8" cy="6" r="2.5"/>
+                  <circle cx="16" cy="12" r="2.5"/>
+                  <circle cx="10" cy="18" r="2.5"/>
+                </svg>
               </button>
-            ))}
-          </div>
-
-          <div className="week-info">
-            <div className="week-info-item"><strong>{currentWeekData.series}</strong> series</div>
-            <div className="week-info-item"><strong>{currentWeekData.reps}</strong> reps</div>
-            <div className="week-info-item">Descanso <strong>{rest}</strong></div>
-            {mode === 'gym' && <div className="week-info-item">Iso <strong>{currentWeekData.iso}</strong></div>}
+            </div>
           </div>
 
           <div className="day-tabs">
@@ -762,28 +781,6 @@ export default function App() {
         </div>
 
         <div className="day-content" key={`${mode}-${day}-${week}`}>
-          <div
-            className={`day-header-sticky${sessionStarted && !sessionComplete ? ' is-sticky' : ''}`}
-            style={sessionStarted && !sessionComplete ? { top: topBarHeight } : undefined}
-          >
-            <div className="day-title">
-              <h1>{currentDay.name.toUpperCase()}</h1>
-              <div className="day-muscle">{currentDay.muscle}</div>
-            </div>
-
-            {sessionStarted && !sessionComplete && !currentDay.isCasaCardio && !currentDay.isGymCardio && (
-              <div className="session-status-inline" onClick={toggleGlobalTimer}>
-                <div className="session-status-row">
-                  <div className={`global-timer-dot${globalTimerPaused ? ' paused' : ''}`} />
-                  <span className="session-status-label">SESIÓN</span>
-                  <span className={`session-status-time${globalTimerPaused ? ' paused' : ''}`}>{fmt(globalTimerSecs)}</span>
-                  {globalTimerRunning && (
-                    <span className={`session-status-pause${globalTimerPaused ? ' paused' : ''}`}>{globalTimerPaused ? '▶' : '⏸'}</span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
 
           {currentDay.isCasaCardio && (
             <div className="cardio-note">
@@ -795,19 +792,6 @@ export default function App() {
             </div>
           )}
 
-          {!sessionStarted && !currentDay.isCasaCardio && !currentDay.isGymCardio && activeBlockIdx >= 0 && (
-            <button
-              className="start-session-btn"
-              onClick={handleStartBlock}
-              disabled={bbState === 'switching'}
-            >
-              {bbState === 'switching' ? (
-                <>PREPÁRATE {String(restRemaining).padStart(2, '0')}</>
-              ) : (
-                <>▶ COMENZAR SESIÓN</>
-              )}
-            </button>
-          )}
 
           {!currentDay.isCasaCardio && blockStates.length > 0 && (
             <div className="blocks-progress">
@@ -904,7 +888,64 @@ export default function App() {
             <p>Tiempo total de entrenamiento</p>
           </div>
         </div>
+
+        {!currentDay.isCasaCardio && !currentDay.isGymCardio && !sessionComplete && activeBlockIdx >= 0 && (
+          <button
+            className={`fab-btn${globalTimerPaused ? ' paused' : ''}`}
+            onClick={sessionStarted ? toggleGlobalTimer : handleStartBlock}
+            disabled={bbState === 'switching' && !sessionStarted}
+          >
+            {!sessionStarted || globalTimerPaused
+              ? <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 20,12 6,21"/></svg>
+              : <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="4" height="18" rx="1"/><rect x="15" y="3" width="4" height="18" rx="1"/></svg>
+            }
+          </button>
+        )}
       </div>
+
+      {settingsOpen && (
+        <div className="settings-sheet-overlay" onClick={closeSettings}>
+          <div className="settings-sheet" onClick={e => e.stopPropagation()}>
+            <div className="settings-sheet-handle" />
+            <h2 className="settings-sheet-title">Configuración del programa</h2>
+
+            <div className="settings-week-grid">
+              {WEEKS.map((w, i) => (
+                <button key={i} className={`settings-week-btn${i === weekTemp ? ' active' : ''}`} onClick={() => setWeekTemp(i)}>
+                  <div className="settings-week-num">S{w.num}</div>
+                  <div className="settings-week-label">{w.label.toUpperCase()}</div>
+                </button>
+              ))}
+            </div>
+
+            <div className="settings-info-grid">
+              <div className="settings-info-card">
+                <span className="settings-info-label">Series</span>
+                <span className="settings-info-value">{WEEKS[weekTemp].series}</span>
+              </div>
+              <div className="settings-info-card">
+                <span className="settings-info-label">Reps</span>
+                <span className="settings-info-value">{WEEKS[weekTemp].reps}</span>
+              </div>
+              <div className="settings-info-card">
+                <span className="settings-info-label">Descanso</span>
+                <span className="settings-info-value">{mode === 'casa' ? WEEKS[weekTemp].restCasa : WEEKS[weekTemp].restGym}</span>
+              </div>
+              {mode === 'gym' && (
+                <div className="settings-info-card">
+                  <span className="settings-info-label">Isométrico</span>
+                  <span className="settings-info-value">{WEEKS[weekTemp].iso}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="settings-sheet-actions">
+              <button className="settings-close-btn" onClick={closeSettings}>Cerrar</button>
+              <button className="settings-save-btn" onClick={saveSettings}>✓ Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </>
   )

@@ -128,20 +128,12 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
                         )}
                       </div>
                     </div>
-                    {isCurrentEx && (repCount != null || (isSwitching && switchRemaining != null)) && (
+                    {isCurrentEx && repCount != null && (
                       <div className="exercise-counter-group">
-                        {repCount != null && (
-                          <div className="counter-cell counter-cell--reps">
-                            <span className="counter-main">{repCount}</span>
-                            <span className="counter-sub">{repLabel ?? 'reps'}</span>
-                          </div>
-                        )}
-                        {isSwitching && switchRemaining != null && (
-                          <div className="counter-cell counter-cell--active">
-                            <span className="counter-main">{switchRemaining}</span>
-                            <span className="counter-sub">rest</span>
-                          </div>
-                        )}
+                        <div className="counter-cell counter-cell--reps">
+                          <span className="counter-main">{repCount}</span>
+                          <span className="counter-sub">{repLabel ?? 'reps'}</span>
+                        </div>
                       </div>
                     )}
                     {isDoneInSeries && !isCurrentEx && (
