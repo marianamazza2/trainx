@@ -7,13 +7,21 @@ import AccordionBlock from './components/AccordionBlock'
 function fmt(s: number) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 }
+let _audioCtx: AudioContext | null = null
+function getAudioCtx(): AudioContext {
+  if (!_audioCtx || _audioCtx.state === 'closed') {
+    _audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+  }
+  if (_audioCtx.state === 'suspended') _audioCtx.resume()
+  return _audioCtx
+}
 function beep(f = 800, d = 150) {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const ctx = getAudioCtx()
     const o = ctx.createOscillator(); const g = ctx.createGain()
     o.connect(g); g.connect(ctx.destination)
     o.frequency.value = f; g.gain.value = 0.15; o.start()
-    setTimeout(() => { o.stop(); ctx.close() }, d)
+    o.stop(ctx.currentTime + d / 1000)
   } catch {}
 }
 function beepWork() { beep(880, 90); setTimeout(() => beep(1100, 90), 140) }
@@ -258,7 +266,7 @@ export default function App() {
       } else {
         setRepCount(count)
       }
-    }, 1500)
+    }, 900)
   }
 
   function stopRepCounter() {
@@ -883,17 +891,10 @@ export default function App() {
           <div className="day-footer">
             <div className="footer-time">{currentDay.duration}</div>
             <div className="footer-note">Incluye calentamiento y elongación</div>
+            {!currentDay.isCasaCardio && !currentDay.isGymCardio && (
+              <div className="footer-note">🏃 Completá con <strong>20-40 min</strong> de cardio adicional</div>
+            )}
           </div>
-
-          {!currentDay.isCasaCardio && !currentDay.isGymCardio && (
-            <div className="cardio-note">
-              <div className="cardio-note-icon">🏃</div>
-              <div>
-                <h4>Cardio adicional</h4>
-                <p>Completá con <strong>20-40 min</strong> de cardio según tu % de grasa corporal.</p>
-              </div>
-            </div>
-          )}
 
 
           <div id="session-complete" className={`session-complete${sessionComplete ? ' active' : ''}`}>

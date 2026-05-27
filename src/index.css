@@ -557,7 +557,8 @@ body {
 
 .day-footer { text-align: center; padding: 24px 16px; margin-top: 8px; }
 .day-footer .footer-time { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 2px; color: var(--accent); margin-bottom: 4px; }
-.day-footer .footer-note { font-size: 0.7rem; color: var(--text-3); }
+.day-footer .footer-note { font-size: 0.7rem; color: var(--text-3); margin-top: 4px; }
+.day-footer .footer-note strong { color: var(--accent); }
 
 .cardio-note {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
