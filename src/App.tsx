@@ -215,6 +215,7 @@ export default function App() {
   function startWorkoutPrep(bi: number) {
     if (bbStateRef.current === 'switching') return
     beepRest(); vibrate(150)
+    setOpenBlocks(prev => { const next = new Set(prev); next.add(bi); return next })
     setBbTimerLabel('PREPÁRATE')
     setShowRestTimer(true)
     setRestRemaining(WORKOUT_PREP_SECS)
@@ -376,7 +377,8 @@ export default function App() {
     if (isPreviewingAnotherBlock) return
 
     const bs = blockStatesRef.current[bi]
-    if (bs && !bs.completed && !isCurrentlyOpen) {
+    const isAlreadyActive = bi === activeBlockIdxRef.current && bbStateRef.current !== 'idle'
+    if (bs && !bs.completed && !isCurrentlyOpen && !isAlreadyActive) {
       activateBlock(bi)
     }
   }
