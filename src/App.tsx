@@ -90,7 +90,7 @@ export default function App() {
   const [sessionComplete, setSessionComplete] = useState(false)
   const [sessionStarted, setSessionStarted] = useState(false)
   const [completedExIdxs, setCompletedExIdxs] = useState<number[]>([])
-  const [topBarHeight, setTopBarHeight] = useState(0)
+  const [, setTopBarHeight] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [weekTemp, setWeekTemp] = useState(week)
 
@@ -717,7 +717,6 @@ export default function App() {
   const days = mode ? (mode === 'casa' ? CASA_DAYS : GYM_DAYS) : CASA_DAYS
   const currentDay = days[day]
   const currentWeekData = WEEKS[week]
-  const rest = mode === 'casa' ? currentWeekData.restCasa : currentWeekData.restGym
 
   // ── Mode Select Screen ────────────────────────────────────────────────────
   if (!mode) {
