@@ -19,6 +19,7 @@ export interface Exercise {
   video?: string
   timeLabel?: string
   isIso?: boolean
+  perSide?: boolean
 }
 
 export type BlockType = 'superserie' | 'biserie' | 'tabata' | 'hiit' | 'serie'

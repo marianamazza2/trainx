@@ -11,6 +11,7 @@ interface Props {
   completedExIdxs?: number[]
   repCount?: number | null
   repLabel?: string
+  repPerSide?: string | null
   week: Week
   mode: Mode
   onToggle: () => void
@@ -23,7 +24,7 @@ interface Props {
   switchRemaining?: number | null
 }
 
-export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, completedExIdxs = [], repCount, repLabel, week, mode, onToggle, onVideoOpen, isResting, restDisplay, restActiveLabel, restActiveSub, isSwitching, switchRemaining }: Props) {
+export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, completedExIdxs = [], repCount, repLabel, repPerSide, week, mode, onToggle, onVideoOpen, isResting, restDisplay, restActiveLabel, restActiveSub, isSwitching, switchRemaining }: Props) {
   const exerciseRefs = useRef<(HTMLDivElement | null)[]>([])
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isTabata = block.type === 'tabata' || block.type === 'hiit'
@@ -130,10 +131,24 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
                     </div>
                     {isCurrentEx && repCount != null && (
                       <div className="exercise-counter-group">
-                        <div className="counter-cell counter-cell--reps">
-                          <span className="counter-main">{repCount}</span>
-                          <span className="counter-sub">{repLabel ?? 'reps'}</span>
-                        </div>
+                        {repPerSide ? (
+                          <>
+                            <div className={`counter-cell ${repPerSide === 'DER' ? 'counter-cell--active' : 'counter-cell--done'}`}>
+                              <span className="counter-main">{repPerSide === 'DER' ? repCount : week.reps}</span>
+                              <span className="counter-sub">DER</span>
+                            </div>
+                            <div className="counter-side-divider" />
+                            <div className={`counter-cell ${repPerSide === 'IZQ' ? 'counter-cell--active' : 'counter-cell--rest'}`}>
+                              <span className="counter-main">{repPerSide === 'IZQ' ? repCount : '—'}</span>
+                              <span className="counter-sub">IZQ</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="counter-cell counter-cell--reps">
+                            <span className="counter-main">{repCount}</span>
+                            <span className="counter-sub">{repLabel ?? 'reps'}</span>
+                          </div>
+                        )}
                       </div>
                     )}
                     {isDoneInSeries && !isCurrentEx && (

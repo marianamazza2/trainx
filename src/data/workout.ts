@@ -25,19 +25,19 @@ export const CASA_DAYS: DayData[] = [
     name: 'Lunes', muscle: 'Tren Inferior + Tabata', duration: '45-55 min',
     blocks: [
       { type: 'superserie', title: 'SUPERSERIE 1', badge: 'Fuerza', count: 3, exercises: [
-        { name: 'Step Up con Mancuerna', muscle: 'Glúteos', repsLabel: '× pierna', video: 'https://vimeo.com/1155210047/562bdb70cb' },
+        { name: 'Step Up con Mancuerna', muscle: 'Glúteos', repsLabel: '× pierna', perSide: true, video: 'https://vimeo.com/1155210047/562bdb70cb' },
         { name: 'Peso Muerto Rumano', muscle: 'Isquios · Glúteos', video: 'https://vimeo.com/1155159293/756e3f1d99' },
-        { name: 'Desplante sin Alternar', muscle: 'Cuádriceps', repsLabel: '× pierna', video: 'https://vimeo.com/551509852/3d193c891a' },
+        { name: 'Desplante sin Alternar', muscle: 'Cuádriceps', repsLabel: '× pierna', perSide: true, video: 'https://vimeo.com/551509852/3d193c891a' },
       ]},
       { type: 'tabata', title: 'TABATA #1', badge: 'Cardio', timing: '30s trabajo → 10s descanso', workSec: 30, restSec: 10, rounds: 4, exercises: [
         { name: 'Squat with Calf Raise', muscle: 'Piernas', timeLabel: '30 seg', video: 'https://vimeo.com/435247917/0e061eff2d' },
         { name: 'Butt Kicks', muscle: 'Cardio', timeLabel: '30 seg', video: 'https://vimeo.com/431991725/df5b615666' },
       ]},
       { type: 'superserie', title: 'SUPERSERIE 2', badge: 'Fuerza', count: 4, exercises: [
-        { name: 'Desplante Caminando', muscle: 'Cuádriceps', repsLabel: '× pierna', video: 'https://vimeo.com/420923811/43ec3cfb1f' },
+        { name: 'Desplante Caminando', muscle: 'Cuádriceps', repsLabel: '× pierna', perSide: true, video: 'https://vimeo.com/420923811/43ec3cfb1f' },
         { name: 'Peso Muerto', muscle: 'Isquios · Espalda', video: 'https://vimeo.com/431984385/ff9378090f' },
-        { name: 'High Knees', muscle: 'Cardio', repsLabel: '× pierna', video: 'https://vimeo.com/1155209154/d16bd6f55f' },
-        { name: 'Lateral Fire Hydrant', muscle: 'Glúteo medio', repsLabel: '× lado', video: 'https://vimeo.com/420928613/ceed97f2cc' },
+        { name: 'High Knees', muscle: 'Cardio', repsLabel: '× pierna', perSide: true, video: 'https://vimeo.com/1155209154/d16bd6f55f' },
+        { name: 'Lateral Fire Hydrant', muscle: 'Glúteo medio', repsLabel: '× lado', perSide: true, video: 'https://vimeo.com/420928613/ceed97f2cc' },
       ]},
       { type: 'tabata', title: 'TABATA #2', badge: 'Cardio', timing: '40s trabajo → 10s descanso', workSec: 40, restSec: 10, rounds: 4, exercises: [
         { name: 'Curtsy Lunge con Mancuernas', muscle: 'Glúteos', timeLabel: '40 seg', video: 'https://vimeo.com/1155208935/c561642da0' },

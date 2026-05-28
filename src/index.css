@@ -474,6 +474,7 @@ body {
 .counter-cell--reps .counter-sub { color: var(--red); }
 .counter-cell--active .counter-sub { color: var(--accent); }
 .counter-cell--done .counter-sub { color: var(--text-3); }
+.counter-side-divider { width: 1px; height: 24px; background: var(--text-3); opacity: 0.25; align-self: center; }
 .exercise-meta { display: flex; gap: 6px; flex-wrap: wrap; }
 .meta-tag { font-size: 0.6rem; font-weight: 600; padding: 2px 8px; border-radius: 50px; }
 .meta-tag.reps { background: var(--surface-3); color: var(--text-2); }

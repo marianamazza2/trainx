@@ -93,6 +93,7 @@ export default function App() {
   const [globalTimerRunning, setGlobalTimerRunning] = useState(false)
   const [globalTimerPaused, setGlobalTimerPaused] = useState(false)
   const [repCount, setRepCount] = useState<number | null>(null)
+  const [repSideLabel, setRepSideLabel] = useState<string | null>(null)
   const [tabataState, setTabataState] = useState<TabataState | null>(null)
   const [, setCircuitState] = useState<CircuitState | null>(null)
   const [sessionComplete, setSessionComplete] = useState(false)
@@ -125,6 +126,7 @@ export default function App() {
   const circuitPrepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const circuitStateRef = useRef<CircuitState | null>(null)
   const repIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const repSideRef = useRef<'DER' | 'IZQ' | null>(null)
   const sessionStartedRef = useRef(false)
   const topBarHeightRef = useRef(0)
 
@@ -252,27 +254,45 @@ export default function App() {
   }
 
   // ── Rep counter ────────────────────────────────────────────────────────────
-  function startRepCounter(totalReps: number, onComplete?: () => void) {
+  function startRepCounter(totalReps: number, onComplete?: () => void, perSide?: boolean) {
     clearInterval(repIntervalRef.current!)
     let count = 1
     setRepCount(1)
+    if (perSide) {
+      setRepSideLabel('DER')
+      repSideRef.current = 'DER'
+    }
     repIntervalRef.current = setInterval(() => {
       if (restPausedRef.current) return
       count++
       if (count > totalReps) {
-        clearInterval(repIntervalRef.current!)
-        repIntervalRef.current = null
-        onComplete?.()
+        if (perSide && repSideRef.current === 'DER') {
+          count = 1
+          setRepCount(1)
+          setRepSideLabel('IZQ')
+          repSideRef.current = 'IZQ'
+          beep(1000, 150); vibrate(100)
+        } else {
+          clearInterval(repIntervalRef.current!)
+          repIntervalRef.current = null
+          if (perSide) {
+            setRepSideLabel(null)
+            repSideRef.current = null
+          }
+          onComplete?.()
+        }
       } else {
         setRepCount(count)
       }
-    }, 900)
+    }, 1500)
   }
 
   function stopRepCounter() {
     clearInterval(repIntervalRef.current!)
     repIntervalRef.current = null
     setRepCount(null)
+    setRepSideLabel(null)
+    repSideRef.current = null
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
@@ -403,15 +423,17 @@ export default function App() {
     setShowRestTimer(false)
     setBbState('training')
     bbStateRef.current = 'training'
-    if (!block.exercises[exIdx]?.isIso) {
+    const ex = block.exercises[exIdx]
+    if (!ex?.isIso) {
+      const perSide = !!ex?.perSide
       if (isMulti && exIdx < block.exercises.length - 1) {
         startRepCounter(WEEKS[weekRef.current].reps, () => {
           startSwitchCountdown(bi, exIdx + 1, blockStatesRef.current[bi])
-        })
+        }, perSide)
       } else {
         startRepCounter(WEEKS[weekRef.current].reps, () => {
           startRestCountdown(bi)
-        })
+        }, perSide)
       }
     }
   }
@@ -857,6 +879,7 @@ export default function App() {
                 completedExIdxs={activeBlockIdx === bi ? completedExIdxs : []}
                 repCount={exRepCount}
                 repLabel={isTabataBlock ? 'work' : undefined}
+                repPerSide={activeBlockIdx === bi ? repSideLabel : null}
                 isSwitching={exIsSwitching}
                 switchRemaining={exSwitchRemaining}
                 week={currentWeekData}
