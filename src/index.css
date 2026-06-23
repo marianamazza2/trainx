@@ -486,14 +486,6 @@ body {
 
 .exercise-done-check { color: var(--green); font-weight: 700; font-size: 0.9rem; flex-shrink: 0; margin-left: 4px; }
 
-.transition-row {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 5px 16px; background: var(--surface-2);
-}
-.transition-icon { font-size: 0.65rem; color: var(--accent); }
-.transition-text { font-size: 0.65rem; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-.transition-time { font-family: 'Bebas Neue', sans-serif; font-size: 0.95rem; color: var(--accent); font-weight: 400; letter-spacing: 1px; }
-
 .rest-card {
   display: flex; justify-content: space-between; align-items: center;
   padding: 10px 14px; background: var(--surface-2); border-radius: 10px; margin-top: 8px;
@@ -508,6 +500,19 @@ body {
 .rest-card--active .rest-time { font-size: 1.6rem; }
 .rest-card .rest-sub { font-size: 0.62rem; color: var(--text-3); margin-top: 1px; text-align: center; }
 .rest-card--active .rest-sub { color: var(--green); font-weight: 700; }
+
+.finish-round-btn {
+  width: 100%; margin-top: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px; border: none; border-radius: 10px;
+  background: var(--accent); color: #0a0a0a;
+  font-family: inherit; font-size: 0.82rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: 0 4px 16px rgba(212, 233, 0, 0.25);
+}
+.finish-round-btn:active { transform: scale(0.97); }
+.finish-round-check { font-size: 1rem; line-height: 1; }
 
 /* Progress bar */
 .blocks-progress { display: flex; gap: 4px; padding: 0 16px; margin-bottom: 16px; }

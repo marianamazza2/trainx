@@ -93,7 +93,6 @@ export default function App() {
   const [globalTimerRunning, setGlobalTimerRunning] = useState(false)
   const [globalTimerPaused, setGlobalTimerPaused] = useState(false)
   const [repCount, setRepCount] = useState<number | null>(null)
-  const [repSideLabel, setRepSideLabel] = useState<string | null>(null)
   const [tabataState, setTabataState] = useState<TabataState | null>(null)
   const [, setCircuitState] = useState<CircuitState | null>(null)
   const [sessionComplete, setSessionComplete] = useState(false)
@@ -126,7 +125,6 @@ export default function App() {
   const circuitPrepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const circuitStateRef = useRef<CircuitState | null>(null)
   const repIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const repSideRef = useRef<'DER' | 'IZQ' | null>(null)
   const sessionStartedRef = useRef(false)
   const topBarHeightRef = useRef(0)
 
@@ -253,46 +251,11 @@ export default function App() {
     }, 1000)
   }
 
-  // ── Rep counter ────────────────────────────────────────────────────────────
-  function startRepCounter(totalReps: number, onComplete?: () => void, perSide?: boolean) {
-    clearInterval(repIntervalRef.current!)
-    let count = 1
-    setRepCount(1)
-    if (perSide) {
-      setRepSideLabel('DER')
-      repSideRef.current = 'DER'
-    }
-    repIntervalRef.current = setInterval(() => {
-      if (restPausedRef.current) return
-      count++
-      if (count > totalReps) {
-        if (perSide && repSideRef.current === 'DER') {
-          count = 1
-          setRepCount(1)
-          setRepSideLabel('IZQ')
-          repSideRef.current = 'IZQ'
-          beep(1000, 150); vibrate(100)
-        } else {
-          clearInterval(repIntervalRef.current!)
-          repIntervalRef.current = null
-          if (perSide) {
-            setRepSideLabel(null)
-            repSideRef.current = null
-          }
-          onComplete?.()
-        }
-      } else {
-        setRepCount(count)
-      }
-    }, 1500)
-  }
-
+  // ── Rep counter (circuit work countdown only) ───────────────────────────────
   function stopRepCounter() {
     clearInterval(repIntervalRef.current!)
     repIntervalRef.current = null
     setRepCount(null)
-    setRepSideLabel(null)
-    repSideRef.current = null
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────
@@ -384,7 +347,7 @@ export default function App() {
       setBlockStates(bs)
       blockStatesRef.current = bs
     }
-    enterTrainingState(bi, bs[bi])
+    enterTrainingState(bi)
   }
 
   function handleAccordionToggle(bi: number) {
@@ -411,31 +374,21 @@ export default function App() {
     }
   }
 
-  function enterTrainingState(bi: number, _bs: BlockState, exIdx = 0) {
+  function enterTrainingState(_bi: number) {
     beepWork(); vibrate(100)
-    currentExIdxRef.current = exIdx
-    setCurrentExIdx(exIdx)
-    setCompletedExIdxs(Array.from({ length: exIdx }, (_, i) => i))
-    const m = modeRef.current!
-    const days = m === 'casa' ? CASA_DAYS : GYM_DAYS
-    const block = days[dayRef.current].blocks[bi]
-    const isMulti = (block.type === 'superserie' || block.type === 'biserie') && block.exercises.length > 1
+    currentExIdxRef.current = 0
+    setCurrentExIdx(0)
+    setCompletedExIdxs([])
     setShowRestTimer(false)
     setBbState('training')
     bbStateRef.current = 'training'
-    const ex = block.exercises[exIdx]
-    if (!ex?.isIso) {
-      const perSide = !!ex?.perSide
-      if (isMulti && exIdx < block.exercises.length - 1) {
-        startRepCounter(WEEKS[weekRef.current].reps, () => {
-          startSwitchCountdown(bi, exIdx + 1, blockStatesRef.current[bi])
-        }, perSide)
-      } else {
-        startRepCounter(WEEKS[weekRef.current].reps, () => {
-          startRestCountdown(bi)
-        }, perSide)
-      }
-    }
+  }
+
+  // User clicks once when the round (series) is finished → start the rest counter
+  function handleFinishRound(bi: number) {
+    if (bbStateRef.current !== 'training') return
+    if (activeBlockIdxRef.current !== bi) return
+    startRestCountdown(bi)
   }
 
   function startRestCountdown(bi: number, forceComplete = false) {
@@ -497,38 +450,8 @@ export default function App() {
           blockStatesRef.current = current
           setCurrentExIdx(0); currentExIdxRef.current = 0
           setCompletedExIdxs([])
-          enterTrainingState(bi, current[bi])
+          enterTrainingState(bi)
         }
-      }
-    }, 1000)
-  }
-
-  function startSwitchCountdown(bi: number, nextExIdx: number, bs: BlockState) {
-    const m = modeRef.current!
-    const days = m === 'casa' ? CASA_DAYS : GYM_DAYS
-    const block = days[dayRef.current].blocks[bi]
-    const nextEx = block.exercises[nextExIdx]
-
-    beepRest(); vibrate(150)
-    setBbTimerLabel('DESCANSO')
-    setShowRestTimer(false)
-    setRestRemaining(EXERCISE_SWITCH_REST_SECS)
-    setRestSub(`→ ${nextEx.name}`)
-    setBbState('switching')
-    bbStateRef.current = 'switching'
-
-    let remaining = EXERCISE_SWITCH_REST_SECS
-    clearInterval(restIntervalRef.current!)
-    restIntervalRef.current = setInterval(() => {
-      if (restPausedRef.current) return
-      remaining--
-      setRestRemaining(remaining)
-      if (remaining <= 3 && remaining > 0) beep(600, 80)
-      if (remaining <= 0) {
-        clearInterval(restIntervalRef.current!)
-        setBbTimerLabel('DESCANSO')
-        setShowRestTimer(false)
-        enterTrainingState(bi, bs, nextExIdx)
       }
     }, 1000)
   }
@@ -839,33 +762,26 @@ export default function App() {
           {currentDay.blocks.map((block, bi) => {
             const isTabataBlock = block.type === 'tabata' || block.type === 'hiit'
             const ts = tabataState?.bi === bi ? tabataState : null
-            const isExerciseSwitch = bbState === 'switching' && bbTimerLabel === 'DESCANSO'
+            const isThisActive = activeBlockIdx === bi
+            const isThisTraining = isThisActive && bbState === 'training' && !isTabataBlock
 
             const exActiveIdx = ts
               ? ts.currentExIdx
-              : (activeBlockIdx === bi && (bbState === 'training' || bbState === 'circuit' || isExerciseSwitch) ? currentExIdx : -1)
+              : (isThisActive && bbState === 'circuit' ? currentExIdx : -1)
 
             const exRepCount = ts
               ? (ts.phase === 'work' ? ts.remaining : null)
-              : (activeBlockIdx === bi && (bbState === 'training' || bbState === 'circuit' || isExerciseSwitch) ? repCount : null)
-
-            const exIsSwitching = ts
-              ? ts.phase === 'rest'
-              : (activeBlockIdx === bi && isExerciseSwitch)
-
-            const exSwitchRemaining = ts
-              ? (ts.phase === 'rest' ? ts.remaining : null)
-              : (activeBlockIdx === bi && isExerciseSwitch ? restRemaining : null)
+              : (isThisActive && bbState === 'circuit' ? repCount : null)
 
             const tabataRoundRest = isTabataBlock && ts?.phase === 'rest' && ts?.isRoundRest
-            const effectiveIsResting = (activeBlockIdx === bi && showRestTimer) || !!tabataRoundRest
+            const effectiveIsResting = (isThisActive && showRestTimer) || !!tabataRoundRest
             const effectiveRestDisplay = tabataRoundRest && ts ? fmt(ts.remaining) : fmt(restRemaining)
             const effectiveRestLabel = tabataRoundRest
               ? 'DESCANSO ENTRE RONDAS'
-              : (activeBlockIdx === bi ? bbTimerLabel : undefined)
+              : (isThisActive ? bbTimerLabel : undefined)
             const effectiveRestSub = tabataRoundRest && ts
               ? `Ronda ${ts.currentRound} de ${ts.totalRounds} completada`
-              : (activeBlockIdx === bi ? restSub : undefined)
+              : (isThisActive ? restSub : undefined)
 
             return (
               <AccordionBlock
@@ -874,14 +790,13 @@ export default function App() {
                 block={block}
                 blockState={blockStates[bi] ?? { currentSet: 0, totalSets: 0, started: false, completed: false }}
                 isOpen={openBlocks.has(bi)}
-                isActive={activeBlockIdx === bi}
+                isActive={isThisActive}
                 activeExIdx={exActiveIdx}
-                completedExIdxs={activeBlockIdx === bi ? completedExIdxs : []}
+                completedExIdxs={isThisActive ? completedExIdxs : []}
                 repCount={exRepCount}
                 repLabel={isTabataBlock ? 'work' : undefined}
-                repPerSide={activeBlockIdx === bi ? repSideLabel : null}
-                isSwitching={exIsSwitching}
-                switchRemaining={exSwitchRemaining}
+                isTraining={isThisTraining}
+                onFinishRound={() => handleFinishRound(bi)}
                 week={currentWeekData}
                 mode={mode}
                 onToggle={() => handleAccordionToggle(bi)}

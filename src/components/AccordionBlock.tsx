@@ -11,7 +11,6 @@ interface Props {
   completedExIdxs?: number[]
   repCount?: number | null
   repLabel?: string
-  repPerSide?: string | null
   week: Week
   mode: Mode
   onToggle: () => void
@@ -20,11 +19,11 @@ interface Props {
   restDisplay?: string
   restActiveLabel?: string
   restActiveSub?: string
-  isSwitching?: boolean
-  switchRemaining?: number | null
+  isTraining?: boolean
+  onFinishRound?: () => void
 }
 
-export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, completedExIdxs = [], repCount, repLabel, repPerSide, week, mode, onToggle, onVideoOpen, isResting, restDisplay, restActiveLabel, restActiveSub, isSwitching, switchRemaining }: Props) {
+export default function AccordionBlock({ index, block, blockState, isOpen, isActive, activeExIdx, completedExIdxs = [], repCount, repLabel, week, mode, onToggle, onVideoOpen, isResting, restDisplay, restActiveLabel, restActiveSub, isTraining, onFinishRound }: Props) {
   const exerciseRefs = useRef<(HTMLDivElement | null)[]>([])
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isTabata = block.type === 'tabata' || block.type === 'hiit'
@@ -97,7 +96,8 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
 
           {block.exercises.map((ex, ei) => {
             const hasVideo = !!ex.video
-            const isCurrentEx = isActive && activeExIdx === ei
+            // During training the whole round is active (one click per round); circuit/tabata highlight a single exercise
+            const isCurrentEx = isActive && (isTraining || activeExIdx === ei)
             const isDoneInSeries = isActive && completedExIdxs.includes(ei)
             const repsText = ex.timeLabel
               ? ex.timeLabel
@@ -131,24 +131,10 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
                     </div>
                     {isCurrentEx && repCount != null && (
                       <div className="exercise-counter-group">
-                        {repPerSide ? (
-                          <>
-                            <div className={`counter-cell ${repPerSide === 'DER' ? 'counter-cell--active' : 'counter-cell--done'}`}>
-                              <span className="counter-main">{repPerSide === 'DER' ? repCount : week.reps}</span>
-                              <span className="counter-sub">DER</span>
-                            </div>
-                            <div className="counter-side-divider" />
-                            <div className={`counter-cell ${repPerSide === 'IZQ' ? 'counter-cell--active' : 'counter-cell--rest'}`}>
-                              <span className="counter-main">{repPerSide === 'IZQ' ? repCount : '—'}</span>
-                              <span className="counter-sub">IZQ</span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="counter-cell counter-cell--reps">
-                            <span className="counter-main">{repCount}</span>
-                            <span className="counter-sub">{repLabel ?? 'reps'}</span>
-                          </div>
-                        )}
+                        <div className="counter-cell counter-cell--reps">
+                          <span className="counter-main">{repCount}</span>
+                          <span className="counter-sub">{repLabel ?? 'reps'}</span>
+                        </div>
                       </div>
                     )}
                     {isDoneInSeries && !isCurrentEx && (
@@ -157,36 +143,29 @@ export default function AccordionBlock({ index, block, blockState, isOpen, isAct
                   </div>
                 </div>
                 {ei < block.exercises.length - 1 && (
-                  isSwitching && activeExIdx === ei && !isTabata ? (
-                    <div className="transition-row">
-                      <span className="transition-icon">↓</span>
-                      <span className="transition-text">Siguiente en</span>
-                      <span className="transition-time">{switchRemaining}s</span>
-                    </div>
-                  ) : (
-                    <div className="connector"><div className="connector-line" /></div>
-                  )
+                  <div className="connector"><div className="connector-line" /></div>
                 )}
               </div>
             )
           })}
 
-          {(!isTabata || isResting) && (
-            <div className={`rest-card${isResting ? ' rest-card--active' : ''}`}>
-              {isResting ? (
-                <>
-                  <span className="rest-label">{restActiveLabel ?? 'DESCANSO ENTRE SERIES'}</span>
-                  <span className="rest-time">{restDisplay}</span>
-                  {restActiveSub && <span className="rest-sub">{restActiveSub}</span>}
-                </>
-              ) : (
-                <>
-                  <span className="rest-label">Descanso entre series</span>
-                  <span className="rest-time">{rest}</span>
-                </>
-              )}
+          {isResting ? (
+            <div className="rest-card rest-card--active">
+              <span className="rest-label">{restActiveLabel ?? 'DESCANSO ENTRE SERIES'}</span>
+              <span className="rest-time">{restDisplay}</span>
+              {restActiveSub && <span className="rest-sub">{restActiveSub}</span>}
             </div>
-          )}
+          ) : isTraining ? (
+            <button className="finish-round-btn" onClick={onFinishRound}>
+              <span className="finish-round-check">✓</span>
+              Terminé la serie {blockState.currentSet} de {blockState.totalSets}
+            </button>
+          ) : !isTabata ? (
+            <div className="rest-card">
+              <span className="rest-label">Descanso entre series</span>
+              <span className="rest-time">{rest}</span>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
